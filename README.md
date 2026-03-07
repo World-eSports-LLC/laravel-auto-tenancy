@@ -15,6 +15,7 @@ A Laravel package that enables **post-authentication multi-tenancy** for any Lar
 - **Automatic tenant switching**: Middleware automatically detects and switches tenant context
 - **Model scoping**: Traits for automatic tenant-aware model queries
 - **Database isolation**: Complete separation between tenant data
+- **Multi-driver support**: MySQL, PostgreSQL, SQLite, and SQL Server
 - **Connection caching**: Optimized database connection management
 - **Encryption support**: Optional encryption for sensitive connection details
 - **Comprehensive commands**: Full set of Artisan commands for tenant management
@@ -208,16 +209,62 @@ php artisan tenant:status --connections
 
 ### Creating Tenants
 
-Use the artisan command to create a new tenant:
+Use the artisan command to create a new tenant. The package supports all major database drivers:
 
+#### **MySQL Tenant** (Default)
 ```bash
-php artisan tenant:create 1 "My Company" \
-  --db-name=tenant_company_db \
-  --db-username=tenant_user \
-  --db-password=secret \
+php artisan tenant:create 1 "MySQL Company" \
+  --db-name=tenant_mysql_db \
+  --db-driver=mysql \
   --db-host=127.0.0.1 \
+  --db-port=3306 \
+  --db-username=mysql_user \
+  --db-password=secret \
   --create-db
 ```
+
+#### **PostgreSQL Tenant**  
+```bash
+php artisan tenant:create 2 "PostgreSQL Company" \
+  --db-name=tenant_postgres_db \
+  --db-driver=pgsql \
+  --db-host=127.0.0.1 \
+  --db-port=5432 \
+  --db-username=postgres_user \
+  --db-password=secret \
+  --create-db
+```
+
+#### **SQLite Tenant**
+```bash
+php artisan tenant:create 3 "SQLite Company" \
+  --db-name=/path/to/tenant.sqlite \
+  --db-driver=sqlite
+  # Note: SQLite doesn't need username/password/host/port
+```
+
+#### **SQL Server Tenant**
+```bash
+php artisan tenant:create 4 "SQL Server Company" \
+  --db-name=tenant_sqlserver_db \
+  --db-driver=sqlsrv \
+  --db-host=127.0.0.1 \
+  --db-port=1433 \
+  --db-username=sa \
+  --db-password=secret \
+  --create-db
+```
+
+### Multi-Driver Support
+
+Your Laravel application can have **tenants using different database drivers simultaneously**:
+
+- **Tenant 1**: Uses MySQL on server A
+- **Tenant 2**: Uses PostgreSQL on server B  
+- **Tenant 3**: Uses SQLite local file
+- **Tenant 4**: Uses SQL Server on server C
+
+The package automatically handles driver-specific configurations and optimizations.
 
 ### Database Management
 

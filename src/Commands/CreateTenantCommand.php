@@ -14,11 +14,11 @@ class CreateTenantCommand extends Command
                         {user_id : The user ID to assign the tenant to}
                         {name : The tenant name}
                         {--db-name= : Database name for the tenant}
-                        {--db-host=127.0.0.1 : Database host}
-                        {--db-port=3306 : Database port}
-                        {--db-username= : Database username}
-                        {--db-password= : Database password}
-                        {--db-driver=mysql : Database driver}
+                        {--db-host=127.0.0.1 : Database host (not required for SQLite)}
+                        {--db-port= : Database port (defaults: MySQL=3306, PostgreSQL=5432, SQL Server=1433)}
+                        {--db-username= : Database username (not required for SQLite)}
+                        {--db-password= : Database password (not required for SQLite)}
+                        {--db-driver=mysql : Database driver (mysql, pgsql, sqlite, sqlsrv)}
                         {--create-db : Create the database if it doesn\'t exist}';
 
     public $description = 'Create a new tenant with database connection';
@@ -46,16 +46,30 @@ class CreateTenantCommand extends Command
         // Get database connection details
         $dbName = $this->option('db-name') ?? "tenant_{$userId}_db";
         $dbHost = $this->option('db-host');
-        $dbPort = $this->option('db-port');
+        $dbDriver = $this->option('db-driver');
         $dbUsername = $this->option('db-username');
         $dbPassword = $this->option('db-password');
-        $dbDriver = $this->option('db-driver');
 
-        if (! $dbUsername || ! $dbPassword) {
-            $this->error('Database username and password are required.');
-
-            return self::FAILURE;
+        // Set driver-specific defaults
+        $dbPort = $this->option('db-port');
+        if (!$dbPort) {
+            $dbPort = match($dbDriver) {
+                'pgsql' => '5432',
+                'sqlsrv' => '1433',
+                'mysql' => '3306',
+                'sqlite' => null,
+                default => '3306'
+            };
         }
+
+        // Driver-specific validation
+        if ($dbDriver !== 'sqlite') {
+            if (!$dbUsername || !$dbPassword) {
+                $this->error('Database username and password are required for ' . $dbDriver . ' driver.');
+                return self::FAILURE;
+            }
+        }
+
 
         // Validate database name format
         if (! $this->validateDatabaseName($dbName)) {
@@ -120,23 +134,43 @@ class CreateTenantCommand extends Command
                 'name' => $tenantName,
             ]);
 
-            // Create tenant database
+            // Create tenant database with driver-specific connection details
+            $connectionDetails = [
+                'driver' => $dbDriver,
+                'database' => $dbName,
+            ];
+
+            // Add driver-specific connection details
+            if ($dbDriver !== 'sqlite') {
+                $connectionDetails['host'] = $dbHost;
+                $connectionDetails['port'] = (int) $dbPort;
+                $connectionDetails['username'] = $dbUsername;
+                $connectionDetails['password'] = $dbPassword;
+                $connectionDetails['prefix'] = '';
+            }
+
+            // Add driver-specific configurations
+            switch ($dbDriver) {
+                case 'mysql':
+                    $connectionDetails['charset'] = 'utf8mb4';
+                    $connectionDetails['collation'] = 'utf8mb4_unicode_ci';
+                    $connectionDetails['strict'] = true;
+                    $connectionDetails['engine'] = null;
+                    break;
+                case 'pgsql':
+                    $connectionDetails['charset'] = 'utf8';
+                    $connectionDetails['schema'] = 'public';
+                    $connectionDetails['sslmode'] = 'prefer';
+                    break;
+                case 'sqlsrv':
+                    $connectionDetails['charset'] = 'utf8';
+                    break;
+            }
+
             $tenantDatabase = TenantDatabase::create([
                 'tenant_id' => $tenant->id,
                 'name' => $dbName,
-                'connection_details' => [
-                    'driver' => $dbDriver,
-                    'host' => $dbHost,
-                    'port' => $dbPort,
-                    'database' => $dbName,
-                    'username' => $dbUsername,
-                    'password' => $dbPassword,
-                    'charset' => 'utf8mb4',
-                    'collation' => 'utf8mb4_unicode_ci',
-                    'prefix' => '',
-                    'strict' => true,
-                    'engine' => null,
-                ],
+                'connection_details' => $connectionDetails,
             ]);
 
             $this->info("✅ Tenant '{$tenantName}' created successfully!");

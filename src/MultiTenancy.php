@@ -71,17 +71,50 @@ class MultiTenancy
 
         $config = [
             'driver' => $connectionDetails['driver'] ?? 'mysql',
-            'host' => $connectionDetails['host'] ?? '127.0.0.1',
-            'port' => $connectionDetails['port'] ?? '3306',
-            'database' => $connectionDetails['database'],
-            'username' => $connectionDetails['username'],
-            'password' => $connectionDetails['password'],
-            'charset' => $connectionDetails['charset'] ?? 'utf8mb4',
-            'collation' => $connectionDetails['collation'] ?? 'utf8mb4_unicode_ci',
-            'prefix' => $connectionDetails['prefix'] ?? '',
-            'strict' => $connectionDetails['strict'] ?? true,
-            'engine' => $connectionDetails['engine'] ?? null,
         ];
+
+        // Driver-specific configuration
+        switch ($connectionDetails['driver']) {
+            case 'sqlite':
+                $config['database'] = $connectionDetails['database'];
+                break;
+
+            case 'pgsql':
+                $config['host'] = $connectionDetails['host'] ?? '127.0.0.1';
+                $config['port'] = $connectionDetails['port'] ?? '5432';
+                $config['database'] = $connectionDetails['database'];
+                $config['username'] = $connectionDetails['username'];
+                $config['password'] = $connectionDetails['password'];
+                $config['charset'] = $connectionDetails['charset'] ?? 'utf8';
+                $config['prefix'] = $connectionDetails['prefix'] ?? '';
+                $config['schema'] = $connectionDetails['schema'] ?? 'public';
+                $config['sslmode'] = $connectionDetails['sslmode'] ?? 'prefer';
+                break;
+
+            case 'sqlsrv':
+                $config['host'] = $connectionDetails['host'] ?? '127.0.0.1';
+                $config['port'] = $connectionDetails['port'] ?? '1433';
+                $config['database'] = $connectionDetails['database'];
+                $config['username'] = $connectionDetails['username'];
+                $config['password'] = $connectionDetails['password'];
+                $config['charset'] = $connectionDetails['charset'] ?? 'utf8';
+                $config['prefix'] = $connectionDetails['prefix'] ?? '';
+                break;
+
+            case 'mysql':
+            default:
+                $config['host'] = $connectionDetails['host'] ?? '127.0.0.1';
+                $config['port'] = $connectionDetails['port'] ?? '3306';
+                $config['database'] = $connectionDetails['database'];
+                $config['username'] = $connectionDetails['username'];
+                $config['password'] = $connectionDetails['password'];
+                $config['charset'] = $connectionDetails['charset'] ?? 'utf8mb4';
+                $config['collation'] = $connectionDetails['collation'] ?? 'utf8mb4_unicode_ci';
+                $config['prefix'] = $connectionDetails['prefix'] ?? '';
+                $config['strict'] = $connectionDetails['strict'] ?? true;
+                $config['engine'] = $connectionDetails['engine'] ?? null;
+                break;
+        }
 
         Config::set("database.connections.$connectionName", $config);
 

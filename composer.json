@@ -1,16 +1,19 @@
 {
-    "name": "worldesports/multi-tenancy",
+    "name": "keithprinkey-ops/laravel-auto-tenancy",
     "description": "Laravel package for post-authentication multi-tenancy in which the user only needs to install the package and their laravel install becomes multi-tenant",
     "keywords": [
-        "worldesports",
         "laravel",
-        "multi-tenancy"
+        "auto-tenancy",
+        "post-authentication",
+        "zero-config",
+        "multi-tenant",
+        "database-switching"
     ],
-    "homepage": "https://github.com/worldesports/multi-tenancy",
+    "homepage": "https://github.com/KeithPrinkey-ops/laravel-multi-tenancy",
     "license": "MIT",
     "authors": [
         {
-            "name": "worldesports",
+            "name": "Keith Prinkey",
             "email": "chieftech@worldesports.app",
             "role": "Developer"
         }
