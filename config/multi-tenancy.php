@@ -65,7 +65,6 @@ return [
     */
     'default_tenant_name' => 'Tenant for :name',
 
-
     /*
     |--------------------------------------------------------------------------
     | Performance Settings

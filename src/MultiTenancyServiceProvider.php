@@ -26,20 +26,20 @@ class MultiTenancyServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package
-                ->name('multi-tenancy')
-                ->hasConfigFile()
-                ->hasViews()
-                ->hasMigration('create_tenant_table')
-                ->hasMigration('create_tenant_databases_table')
-                ->hasMigration('create_tenant_database_metadata_table')
-                ->hasMigration('add_automatic_detection_fields_to_tenants_table')
-                ->hasMigration('add_is_primary_to_tenant_databases_table')
-                ->hasCommand(MultiTenancyCommand::class)
-                ->hasCommand(CreateTenantCommand::class)
-                ->hasCommand(TenantMigrateCommand::class)
-                ->hasCommand(TenantSeedCommand::class)
-                ->hasCommand(CleanupTenantCommand::class)
-                ->hasCommand(InstallMultiTenancyCommand::class);
+            ->name('multi-tenancy')
+            ->hasConfigFile()
+            ->hasViews()
+            ->hasMigration('create_tenant_table')
+            ->hasMigration('create_tenant_databases_table')
+            ->hasMigration('create_tenant_database_metadata_table')
+            ->hasMigration('add_automatic_detection_fields_to_tenants_table')
+            ->hasMigration('add_is_primary_to_tenant_databases_table')
+            ->hasCommand(MultiTenancyCommand::class)
+            ->hasCommand(CreateTenantCommand::class)
+            ->hasCommand(TenantMigrateCommand::class)
+            ->hasCommand(TenantSeedCommand::class)
+            ->hasCommand(CleanupTenantCommand::class)
+            ->hasCommand(InstallMultiTenancyCommand::class);
     }
 
     public function register()

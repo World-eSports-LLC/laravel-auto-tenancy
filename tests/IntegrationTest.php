@@ -95,20 +95,46 @@ class IntegrationTest extends TestCase
         $user = DB::table('users')->where('id', 1)->first();
 
         // Create a proper Authenticatable user instance
-        $authenticatableUser = new class($user) implements \Illuminate\Contracts\Auth\Authenticatable {
+        $authenticatableUser = new class($user) implements \Illuminate\Contracts\Auth\Authenticatable
+        {
             private $user;
 
-            public function __construct($user) {
+            public function __construct($user)
+            {
                 $this->user = $user;
             }
 
-            public function getAuthIdentifierName() { return 'id'; }
-            public function getAuthIdentifier() { return $this->user->id; }
-            public function getAuthPassword() { return ''; }
-            public function getRememberToken() { return null; }
+            public function getAuthIdentifierName()
+            {
+                return 'id';
+            }
+
+            public function getAuthIdentifier()
+            {
+                return $this->user->id;
+            }
+
+            public function getAuthPassword()
+            {
+                return '';
+            }
+
+            public function getRememberToken()
+            {
+                return null;
+            }
+
             public function setRememberToken($value) {}
-            public function getRememberTokenName() { return null; }
-            public function getAuthPasswordName() { return 'password'; }
+
+            public function getRememberTokenName()
+            {
+                return null;
+            }
+
+            public function getAuthPasswordName()
+            {
+                return 'password';
+            }
         };
 
         // Ensure no tenant is set initially

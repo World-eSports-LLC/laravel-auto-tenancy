@@ -17,17 +17,17 @@ class SetTenantOnLogin
         $tenant = $this->findTenantByUserId($user);
 
         // Strategy 2: Email domain-based detection (automatic!)
-        if (!$tenant && config('multi-tenancy.auto_detect_by_email', false)) {
+        if (! $tenant && config('multi-tenancy.auto_detect_by_email', false)) {
             $tenant = $this->findTenantByEmailDomain($user);
         }
 
         // Strategy 3: Subdomain detection (automatic!)
-        if (!$tenant && config('multi-tenancy.subdomain.enabled', false)) {
+        if (! $tenant && config('multi-tenancy.subdomain.enabled', false)) {
             $tenant = $this->findTenantBySubdomain();
         }
 
         // Strategy 4: Auto-create tenant for new users (automatic!)
-        if (!$tenant && config('multi-tenancy.auto_create_tenant', false)) {
+        if (! $tenant && config('multi-tenancy.auto_create_tenant', false)) {
             $tenant = $this->createTenantForUser($user);
         }
 
@@ -49,7 +49,7 @@ class SetTenantOnLogin
     private function findTenantByUserId($user): ?Tenant
     {
         /** @var \Illuminate\Database\Eloquent\Model $user */
-        if (!($user instanceof \Illuminate\Database\Eloquent\Model)) {
+        if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
             return null;
         }
 
@@ -61,11 +61,11 @@ class SetTenantOnLogin
      */
     private function findTenantByEmailDomain($user): ?Tenant
     {
-        if (!isset($user->email)) {
+        if (! isset($user->email)) {
             return null;
         }
 
-        $domain = substr(strrchr($user->email, "@"), 1);
+        $domain = substr(strrchr($user->email, '@'), 1);
 
         // Skip generic email domains
         $genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'];
@@ -96,8 +96,9 @@ class SetTenantOnLogin
 
         // Validate against allowed base domain to prevent Host header attacks
         $baseDomain = config('multi-tenancy.subdomain.base_domain');
-        if ($baseDomain && !str_ends_with($host, $baseDomain)) {
+        if ($baseDomain && ! str_ends_with($host, $baseDomain)) {
             \Log::warning("Invalid host header rejected for tenant detection: {$host}");
+
             return null;
         }
 
@@ -138,6 +139,7 @@ class SetTenantOnLogin
 
         } catch (\Exception $e) {
             \Log::error("Failed to auto-create tenant for user {$user->id}: {$e->getMessage()}");
+
             return null;
         }
     }
@@ -145,16 +147,17 @@ class SetTenantOnLogin
     private function generateTenantName($user): string
     {
         $template = config('multi-tenancy.default_tenant_name', 'Tenant for :name');
+
         return str_replace(':name', $user->name ?? 'User', $template);
     }
 
     private function extractDomainFromUser($user): ?string
     {
-        if (!isset($user->email)) {
+        if (! isset($user->email)) {
             return null;
         }
 
-        $domain = substr(strrchr($user->email, "@"), 1);
+        $domain = substr(strrchr($user->email, '@'), 1);
         $genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
 
         return in_array($domain, $genericDomains) ? null : $domain;
@@ -170,7 +173,7 @@ class SetTenantOnLogin
         $counter = 1;
         $subdomain = $base;
         while (Tenant::where('subdomain', $subdomain)->exists()) {
-            $subdomain = $base . $counter;
+            $subdomain = $base.$counter;
             $counter++;
         }
 
@@ -180,14 +183,14 @@ class SetTenantOnLogin
     private function createDefaultDatabase(Tenant $tenant, $user): void
     {
         // Only create if main database connection details are configured
-        $defaultConnection = config('database.connections.' . config('database.default'));
+        $defaultConnection = config('database.connections.'.config('database.default'));
 
-        if (!$defaultConnection) {
+        if (! $defaultConnection) {
             return;
         }
 
         // Create a database for this tenant using same connection but different DB name
-        $dbName = 'tenant_' . $tenant->id . '_' . uniqid();
+        $dbName = 'tenant_'.$tenant->id.'_'.uniqid();
 
         \Worldesports\MultiTenancy\Models\TenantDatabase::create([
             'tenant_id' => $tenant->id,

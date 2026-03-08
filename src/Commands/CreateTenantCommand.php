@@ -55,8 +55,8 @@ class CreateTenantCommand extends Command
 
         // Set driver-specific defaults
         $dbPort = $this->option('db-port');
-        if (!$dbPort) {
-            $dbPort = match($dbDriver) {
+        if (! $dbPort) {
+            $dbPort = match ($dbDriver) {
                 'pgsql' => 5432,
                 'sqlsrv' => 1433,
                 'mysql' => 3306,
@@ -69,12 +69,12 @@ class CreateTenantCommand extends Command
 
         // Driver-specific validation
         if ($dbDriver !== 'sqlite') {
-            if (!$dbUsername || !$dbPassword) {
-                $this->error('Database username and password are required for ' . $dbDriver . ' driver.');
+            if (! $dbUsername || ! $dbPassword) {
+                $this->error('Database username and password are required for '.$dbDriver.' driver.');
+
                 return self::FAILURE;
             }
         }
-
 
         // Validate database name format
         if (! $this->validateDatabaseName($dbName)) {
@@ -227,6 +227,7 @@ class CreateTenantCommand extends Command
 
     /**
      * Validate database connection
+     *
      * @used
      */
     private function validateDatabaseConnection(array $connectionDetails): bool
@@ -249,6 +250,7 @@ class CreateTenantCommand extends Command
 
     /**
      * Validate database name format
+     *
      * @used
      */
     private function validateDatabaseName(string $dbName): bool
@@ -268,5 +270,4 @@ class CreateTenantCommand extends Command
 
         return true;
     }
-
 }

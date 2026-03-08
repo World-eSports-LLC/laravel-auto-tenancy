@@ -183,14 +183,14 @@ class MultiTenancy
             ->get();
 
         return $databases->map(function ($database) {
-                /** @var \Worldesports\MultiTenancy\Models\TenantDatabase $database */
-                return [
-                    'id' => $database->id,
-                    'name' => $database->name,
-                    'connection_details' => $database->connection_details,
-                    'metadata' => $database->metadata->pluck('value', 'key')->toArray(),
-                ];
-            })
+            /** @var \Worldesports\MultiTenancy\Models\TenantDatabase $database */
+            return [
+                'id' => $database->id,
+                'name' => $database->name,
+                'connection_details' => $database->connection_details,
+                'metadata' => $database->metadata->pluck('value', 'key')->toArray(),
+            ];
+        })
             ->toArray();
     }
 

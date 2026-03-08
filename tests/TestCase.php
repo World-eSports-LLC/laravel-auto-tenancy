@@ -67,12 +67,14 @@ class TestCase extends Orchestra
 class TestUser extends \Illuminate\Foundation\Auth\User
 {
     protected $table = 'users';
+
     protected $fillable = ['name', 'email', 'password'];
 
     // Simple factory method for tests
     public static function factory()
     {
-        return new class {
+        return new class
+        {
             public function create(array $attributes = [])
             {
                 return TestUser::create(array_merge([

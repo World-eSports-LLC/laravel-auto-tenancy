@@ -53,6 +53,7 @@ trait BelongsToTenant
                 if ($database) {
                     $connectionName = MultiTenancy::setTenantDatabaseConnection($database);
                     $query->getModel()->setConnection($connectionName);
+
                     return $query->getModel()->newQuery();
                 }
             }
@@ -62,6 +63,7 @@ trait BelongsToTenant
             $connectionName = MultiTenancy::getCurrentConnectionName();
             if ($connectionName) {
                 $query->getModel()->setConnection($connectionName);
+
                 return $query->getModel()->newQuery();
             }
         }

@@ -17,7 +17,7 @@ class CreateTenantOnRegistration
         $user = $event->user;
 
         /** @var \Illuminate\Database\Eloquent\Model $user */
-        if (!($user instanceof \Illuminate\Database\Eloquent\Model)) {
+        if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
             return;
         }
 

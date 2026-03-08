@@ -13,7 +13,7 @@ class SetTenant
     {
         if ($user = $request->user()) {
             /** @var \Illuminate\Database\Eloquent\Model $user */
-            if (!($user instanceof \Illuminate\Database\Eloquent\Model)) {
+            if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
                 return $this->handleError($request, $action, 'Invalid user model');
             }
 
@@ -50,6 +50,7 @@ class SetTenant
                 if ($routeName && \Illuminate\Support\Facades\Route::has($routeName)) {
                     return redirect()->route($routeName)->with('error', 'Please contact support to set up your tenant.');
                 }
+
                 // Fallback to back or home if route doesn't exist
                 return redirect()->back()->with('error', 'Please contact support to set up your tenant.');
 

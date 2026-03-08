@@ -54,6 +54,7 @@ class Tenant extends Model
 
         /** @var TenantDatabase|null $first */
         $first = $this->databases()->first();
+
         return $first;
     }
 
