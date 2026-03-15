@@ -2,7 +2,7 @@
 
 namespace Worldesports\MultiTenancy\Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
@@ -11,7 +11,7 @@ use Worldesports\MultiTenancy\Tests\TestUser;
 
 class TenantConnectionTest extends TestCase
 {
-    use RefreshDatabase;
+    use UsesTestMigrations;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class TenantConnectionTest extends TestCase
     }
 
     /** @test */
-    public function it_can_create_and_set_a_tenant()
+    public function test_it_can_create_and_set_a_tenant()
     {
         // Create tenant
         $tenant = Tenant::create([
@@ -38,12 +38,9 @@ class TenantConnectionTest extends TestCase
             'tenant_id' => $tenant->id,
             'name' => 'test_db',
             'connection_details' => [
-                'driver' => 'mysql',
-                'host' => '127.0.0.1',
-                'port' => '3306',
-                'database' => 'test_tenant_db',
-                'username' => 'root',
-                'password' => '',
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
             ],
         ]);
 
@@ -56,7 +53,7 @@ class TenantConnectionTest extends TestCase
     }
 
     /** @test */
-    public function it_can_reset_tenant_context()
+    public function test_it_can_reset_tenant_context()
     {
         // Create and set tenant
         $tenant = Tenant::create([
@@ -75,7 +72,7 @@ class TenantConnectionTest extends TestCase
     }
 
     /** @test */
-    public function it_can_switch_to_main_connection()
+    public function test_it_can_switch_to_main_connection()
     {
         $originalConnection = config('database.default');
 
@@ -89,12 +86,9 @@ class TenantConnectionTest extends TestCase
             'tenant_id' => $tenant->id,
             'name' => 'test_db',
             'connection_details' => [
-                'driver' => 'mysql',
-                'host' => '127.0.0.1',
-                'port' => '3306',
-                'database' => 'test_tenant_db',
-                'username' => 'root',
-                'password' => '',
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
             ],
         ]);
 

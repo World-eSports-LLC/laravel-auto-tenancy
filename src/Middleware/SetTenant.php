@@ -14,7 +14,10 @@ class SetTenant
         if ($user = $request->user()) {
             /** @var \Illuminate\Database\Eloquent\Model $user */
             if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
-                return $this->handleError($request, $action, 'Invalid user model');
+                $response = $this->handleError($request, $action, 'Invalid user model');
+                if ($response) {
+                    return $response;
+                }
             }
 
             $tenant = Tenant::where('user_id', $user->getKey())->first();
@@ -23,7 +26,10 @@ class SetTenant
                 try {
                     MultiTenancy::setTenant($tenant);
                 } catch (\Exception $e) {
-                    return $this->handleError($request, $action, 'Failed to set tenant: '.$e->getMessage());
+                    $response = $this->handleError($request, $action, 'Failed to set tenant: '.$e->getMessage());
+                    if ($response) {
+                        return $response;
+                    }
                 }
             } else {
                 // No tenant found for user
@@ -73,7 +79,7 @@ class SetTenant
             default:
                 \Log::error("Tenant middleware error: $message");
 
-                return response()->json(['error' => 'Internal server error'], 500);
+                return null;
         }
     }
 }

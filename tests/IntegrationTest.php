@@ -3,51 +3,34 @@
 namespace Worldesports\MultiTenancy\Tests;
 
 use Illuminate\Auth\Events\Login;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Schema;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Tests\TestUser;
 
 class IntegrationTest extends TestCase
 {
-    use RefreshDatabase;
+    use UsesTestMigrations;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Create a test user table FIRST (before package migrations with FK constraints)
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamps();
-        });
-
-        // Create the tenant tables
-        $this->runPackageMigrations();
-
-        // Create test user
-        DB::table('users')->insert([
-            'id' => 1,
+        $this->user = TestUser::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
     }
 
     /** @test */
-    public function it_can_create_tenant_with_database_connection()
+    public function test_it_can_create_tenant_with_database_connection()
     {
         // Create tenant
         $tenant = Tenant::create([
-            'user_id' => 1,
+            'user_id' => $this->user->id,
             'name' => 'Test Company',
         ]);
 
@@ -62,13 +45,13 @@ class IntegrationTest extends TestCase
             ],
         ]);
 
-        expect($tenant->exists)->toBeTrue();
-        expect($tenantDb->exists)->toBeTrue();
-        expect($tenant->databases)->toHaveCount(1);
+        $this->assertTrue($tenant->exists);
+        $this->assertTrue($tenantDb->exists);
+        $this->assertCount(1, $tenant->databases);
     }
 
     /** @test */
-    public function it_switches_database_connections_when_setting_tenant()
+    public function test_it_switches_database_connections_when_setting_tenant()
     {
         $originalConnection = config('database.default');
 
@@ -79,77 +62,33 @@ class IntegrationTest extends TestCase
         MultiTenancy::setTenant($tenant);
 
         // Check that connection switched
-        expect(MultiTenancy::hasTenant())->toBeTrue();
-        expect(MultiTenancy::getTenant()->id)->toBe($tenant->id);
-        expect(config('database.default'))->not->toBe($originalConnection);
-        expect(MultiTenancy::getCurrentConnectionName())->toContain('tenant_connection_');
+        $this->assertTrue(MultiTenancy::hasTenant());
+        $this->assertSame($tenant->id, MultiTenancy::getTenant()->id);
+        $this->assertNotSame($originalConnection, config('database.default'));
+        $this->assertStringContainsString('tenant_connection_', MultiTenancy::getCurrentConnectionName());
     }
 
     /** @test */
-    public function it_automatically_sets_tenant_on_login_event()
+    public function test_it_automatically_sets_tenant_on_login_event()
     {
         // Create tenant
         $tenant = $this->createTenantWithDatabase();
 
-        // Get the actual user from the database
-        $user = DB::table('users')->where('id', 1)->first();
-
-        // Create a proper Authenticatable user instance
-        $authenticatableUser = new class($user) implements \Illuminate\Contracts\Auth\Authenticatable
-        {
-            private $user;
-
-            public function __construct($user)
-            {
-                $this->user = $user;
-            }
-
-            public function getAuthIdentifierName()
-            {
-                return 'id';
-            }
-
-            public function getAuthIdentifier()
-            {
-                return $this->user->id;
-            }
-
-            public function getAuthPassword()
-            {
-                return '';
-            }
-
-            public function getRememberToken()
-            {
-                return null;
-            }
-
-            public function setRememberToken($value) {}
-
-            public function getRememberTokenName()
-            {
-                return null;
-            }
-
-            public function getAuthPasswordName()
-            {
-                return 'password';
-            }
-        };
+        $authenticatableUser = $this->user;
 
         // Ensure no tenant is set initially
-        expect(MultiTenancy::hasTenant())->toBeFalse();
+        $this->assertFalse(MultiTenancy::hasTenant());
 
         // Fire login event
         Event::dispatch(new Login('web', $authenticatableUser, false));
 
         // Check that tenant was automatically set
-        expect(MultiTenancy::hasTenant())->toBeTrue();
-        expect(MultiTenancy::getTenant()->id)->toBe($tenant->id);
+        $this->assertTrue(MultiTenancy::hasTenant());
+        $this->assertSame($tenant->id, MultiTenancy::getTenant()->id);
     }
 
     /** @test */
-    public function it_can_switch_back_to_main_connection()
+    public function test_it_can_switch_back_to_main_connection()
     {
         $originalConnection = config('database.default');
 
@@ -158,39 +97,39 @@ class IntegrationTest extends TestCase
         MultiTenancy::setTenant($tenant);
 
         // Verify we're on tenant connection
-        expect(config('database.default'))->not->toBe($originalConnection);
+        $this->assertNotSame($originalConnection, config('database.default'));
 
         // Switch back to main
         MultiTenancy::switchToMainConnection();
 
         // Verify we're back on main connection
-        expect(config('database.default'))->toBe($originalConnection);
-        expect(MultiTenancy::getCurrentConnectionName())->toBeNull();
+        $this->assertSame($originalConnection, config('database.default'));
+        $this->assertNull(MultiTenancy::getCurrentConnectionName());
     }
 
     /** @test */
-    public function it_can_reset_tenant_context_completely()
+    public function test_it_can_reset_tenant_context_completely()
     {
         // Create and set tenant
         $tenant = $this->createTenantWithDatabase();
         MultiTenancy::setTenant($tenant);
 
         // Verify tenant is set
-        expect(MultiTenancy::hasTenant())->toBeTrue();
-        expect(MultiTenancy::getTenant())->not->toBeNull();
+        $this->assertTrue(MultiTenancy::hasTenant());
+        $this->assertNotNull(MultiTenancy::getTenant());
 
         // Reset tenant
         MultiTenancy::resetTenant();
 
         // Verify everything is reset
-        expect(MultiTenancy::hasTenant())->toBeFalse();
-        expect(MultiTenancy::getTenant())->toBeNull();
-        expect(MultiTenancy::getTenantId())->toBeNull();
-        expect(MultiTenancy::getCurrentConnectionName())->toBeNull();
+        $this->assertFalse(MultiTenancy::hasTenant());
+        $this->assertNull(MultiTenancy::getTenant());
+        $this->assertNull(MultiTenancy::getTenantId());
+        $this->assertNull(MultiTenancy::getCurrentConnectionName());
     }
 
     /** @test */
-    public function it_retrieves_tenant_database_metadata()
+    public function test_it_retrieves_tenant_database_metadata()
     {
         $tenant = $this->createTenantWithDatabase();
 
@@ -204,33 +143,33 @@ class IntegrationTest extends TestCase
 
         $metadata = MultiTenancy::getTenantDatabaseMetadata();
 
-        expect($metadata)->toHaveCount(1);
-        expect($metadata[0]['name'])->toBe('test_tenant_db');
-        expect($metadata[0]['metadata']['version'])->toBe('1.0.0');
-        expect($metadata[0]['connection_info']['driver'])->toBe('sqlite');
+        $this->assertCount(1, $metadata);
+        $this->assertSame('test_tenant_db', $metadata[0]['name']);
+        $this->assertSame('1.0.0', $metadata[0]['metadata']['version']);
+        $this->assertSame('sqlite', $metadata[0]['connection_info']['driver']);
     }
 
     /** @test */
-    public function it_handles_tenant_without_databases_gracefully()
+    public function test_it_handles_tenant_without_databases_gracefully()
     {
         // Create tenant without database
         $tenant = Tenant::create([
-            'user_id' => 1,
+            'user_id' => $this->user->id,
             'name' => 'Test Company No DB',
         ]);
 
         MultiTenancy::setTenant($tenant);
 
-        expect(MultiTenancy::hasTenant())->toBeTrue();
-        expect(MultiTenancy::getTenant()->id)->toBe($tenant->id);
-        expect(MultiTenancy::getCurrentConnectionName())->toBeNull();
+        $this->assertTrue(MultiTenancy::hasTenant());
+        $this->assertSame($tenant->id, MultiTenancy::getTenant()->id);
+        $this->assertNull(MultiTenancy::getCurrentConnectionName());
     }
 
     /** @test */
-    public function it_throws_exception_for_invalid_database_configuration()
+    public function test_it_throws_exception_for_invalid_database_configuration()
     {
         $tenant = Tenant::create([
-            'user_id' => 1,
+            'user_id' => $this->user->id,
             'name' => 'Test Company',
         ]);
 
@@ -250,30 +189,30 @@ class IntegrationTest extends TestCase
     }
 
     /** @test */
-    public function service_provider_registers_multitenancy_as_singleton()
+    public function test_service_provider_registers_multitenancy_as_singleton()
     {
-        $instance1 = app(MultiTenancy::class);
-        $instance2 = app(MultiTenancy::class);
+        $instance1 = app(\Worldesports\MultiTenancy\MultiTenancy::class);
+        $instance2 = app(\Worldesports\MultiTenancy\MultiTenancy::class);
 
-        expect($instance1)->toBe($instance2);
+        $this->assertSame($instance1, $instance2);
     }
 
     /** @test */
-    public function facade_works_correctly()
+    public function test_facade_works_correctly()
     {
-        expect(MultiTenancy::hasTenant())->toBeFalse();
+        $this->assertFalse(MultiTenancy::hasTenant());
 
         $tenant = $this->createTenantWithDatabase();
         MultiTenancy::setTenant($tenant);
 
-        expect(MultiTenancy::hasTenant())->toBeTrue();
-        expect(MultiTenancy::getTenantId())->toBe($tenant->id);
+        $this->assertTrue(MultiTenancy::hasTenant());
+        $this->assertSame($tenant->id, MultiTenancy::getTenantId());
     }
 
     protected function createTenantWithDatabase(): Tenant
     {
         $tenant = Tenant::create([
-            'user_id' => 1,
+            'user_id' => $this->user->id,
             'name' => 'Test Company',
         ]);
 
@@ -288,37 +227,5 @@ class IntegrationTest extends TestCase
         ]);
 
         return $tenant->fresh(['databases']);
-    }
-
-    protected function runPackageMigrations(): void
-    {
-        // Run tenant table migration
-        Schema::create('tenants', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->string('domain')->nullable();
-            $table->string('subdomain')->nullable();
-            $table->timestamps();
-        });
-
-        // Run tenant databases migration
-        Schema::create('tenant_databases', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->boolean('is_primary')->default(false);
-            $table->json('connection_details');
-            $table->timestamps();
-        });
-
-        // Run tenant database metadata migration
-        Schema::create('tenant_database_metadata', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_database_id')->constrained()->cascadeOnDelete();
-            $table->string('key');
-            $table->text('value')->nullable();
-            $table->timestamps();
-        });
     }
 }

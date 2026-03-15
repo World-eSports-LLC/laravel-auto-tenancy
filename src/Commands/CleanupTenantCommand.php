@@ -4,6 +4,7 @@ namespace Worldesports\MultiTenancy\Commands;
 
 use Exception;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
 
@@ -76,19 +77,125 @@ class CleanupTenantCommand extends Command
 
         try {
             $connectionDetails = $database->connection_details;
+            if (! is_array($connectionDetails)) {
+                throw new InvalidArgumentException('Invalid connection details format.');
+            }
 
-            // Connect to MySQL without specifying database
-            $dsn = "{$connectionDetails['driver']}:host={$connectionDetails['host']};port={$connectionDetails['port']}";
-            $pdo = new \PDO($dsn, $connectionDetails['username'], $connectionDetails['password']);
+            $driver = (string) ($connectionDetails['driver'] ?? 'mysql');
 
-            // Drop the database
-            $pdo->exec("DROP DATABASE IF EXISTS `{$connectionDetails['database']}`");
+            match ($driver) {
+                'mysql' => $this->dropMysqlDatabase($connectionDetails),
+                'pgsql' => $this->dropPgsqlDatabase($connectionDetails),
+                'sqlsrv' => $this->dropSqlsrvDatabase($connectionDetails),
+                'sqlite' => $this->dropSqliteDatabase($connectionDetails),
+                default => throw new InvalidArgumentException("Unsupported database driver '{$driver}' for cleanup."),
+            };
 
-            $this->info("  ✅ Database '{$connectionDetails['database']}' dropped successfully.");
+            $databaseName = (string) ($connectionDetails['database'] ?? $database->name);
+            $this->info("  ✅ Database '{$databaseName}' dropped successfully.");
 
         } catch (Exception $e) {
             $this->error("  ❌ Failed to drop database '{$database->name}': {$e->getMessage()}");
             throw $e;
         }
+    }
+
+    private function dropMysqlDatabase(array $connectionDetails): void
+    {
+        $host = $this->requireConnectionValue($connectionDetails, 'host');
+        $port = (string) ($connectionDetails['port'] ?? '3306');
+        $username = $this->requireConnectionValue($connectionDetails, 'username');
+        $password = (string) ($connectionDetails['password'] ?? '');
+        $database = $this->requireSafeDatabaseName($connectionDetails);
+
+        $pdo = new \PDO("mysql:host={$host};port={$port}", $username, $password);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('DROP DATABASE IF EXISTS '.$this->quoteMysqlIdentifier($database));
+    }
+
+    private function dropPgsqlDatabase(array $connectionDetails): void
+    {
+        $host = $this->requireConnectionValue($connectionDetails, 'host');
+        $port = (string) ($connectionDetails['port'] ?? '5432');
+        $username = $this->requireConnectionValue($connectionDetails, 'username');
+        $password = (string) ($connectionDetails['password'] ?? '');
+        $database = $this->requireSafeDatabaseName($connectionDetails);
+
+        // Connect to an admin database so the target database can be dropped.
+        $pdo = new \PDO("pgsql:host={$host};port={$port};dbname=postgres", $username, $password);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $identifier = $this->quotePgsqlIdentifier($database);
+        $pdo->exec("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{$database}' AND pid <> pg_backend_pid()") ;
+        $pdo->exec("DROP DATABASE IF EXISTS {$identifier}");
+    }
+
+    private function dropSqlsrvDatabase(array $connectionDetails): void
+    {
+        $host = $this->requireConnectionValue($connectionDetails, 'host');
+        $port = (string) ($connectionDetails['port'] ?? '1433');
+        $username = $this->requireConnectionValue($connectionDetails, 'username');
+        $password = (string) ($connectionDetails['password'] ?? '');
+        $database = $this->requireSafeDatabaseName($connectionDetails);
+
+        $pdo = new \PDO("sqlsrv:Server={$host},{$port};Database=master", $username, $password);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $identifier = $this->quoteSqlsrvIdentifier($database);
+        $pdo->exec("IF DB_ID(N'{$database}') IS NOT NULL BEGIN ALTER DATABASE {$identifier} SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE {$identifier}; END");
+    }
+
+    private function dropSqliteDatabase(array $connectionDetails): void
+    {
+        $databasePath = $this->requireConnectionValue($connectionDetails, 'database');
+        if ($databasePath === ':memory:') {
+            throw new InvalidArgumentException('Cannot drop an in-memory SQLite database.');
+        }
+
+        if (! file_exists($databasePath)) {
+            return;
+        }
+
+        if (! is_file($databasePath)) {
+            throw new InvalidArgumentException('SQLite database path is not a file.');
+        }
+
+        if (! unlink($databasePath)) {
+            throw new InvalidArgumentException("Unable to delete SQLite database file '{$databasePath}'.");
+        }
+    }
+
+    private function requireConnectionValue(array $connectionDetails, string $key): string
+    {
+        $value = (string) ($connectionDetails[$key] ?? '');
+        if ($value === '') {
+            throw new InvalidArgumentException("Missing required connection detail '{$key}'.");
+        }
+
+        return $value;
+    }
+
+    private function requireSafeDatabaseName(array $connectionDetails): string
+    {
+        $database = $this->requireConnectionValue($connectionDetails, 'database');
+
+        if (! preg_match('/^[A-Za-z0-9_]+$/', $database)) {
+            throw new InvalidArgumentException('Unsafe database name. Only letters, numbers, and underscores are allowed for cleanup.');
+        }
+
+        return $database;
+    }
+
+    private function quoteMysqlIdentifier(string $identifier): string
+    {
+        return '`'.str_replace('`', '``', $identifier).'`';
+    }
+
+    private function quotePgsqlIdentifier(string $identifier): string
+    {
+        return '"'.str_replace('"', '""', $identifier).'"';
+    }
+
+    private function quoteSqlsrvIdentifier(string $identifier): string
+    {
+        return '['.str_replace(']', ']]', $identifier).']';
     }
 }

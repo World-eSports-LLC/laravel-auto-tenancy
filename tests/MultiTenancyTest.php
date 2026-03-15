@@ -1,40 +1,52 @@
 <?php
 
+namespace Worldesports\MultiTenancy\Tests;
+
 use Worldesports\MultiTenancy\MultiTenancy;
 
-it('can instantiate the MultiTenancy class', function () {
-    $multiTenancy = new MultiTenancy;
-    expect($multiTenancy)->toBeInstanceOf(MultiTenancy::class);
-});
+class MultiTenancyTest extends TestCase
+{
+    public function test_can_instantiate_the_multi_tenancy_class(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $this->assertInstanceOf(MultiTenancy::class, $multiTenancy);
+    }
 
-it('can echo a phrase', function () {
-    $multiTenancy = new MultiTenancy;
-    $result = $multiTenancy->echoPhrase('Hello, World!');
-    expect($result)->toBe('Hello, World!');
-});
+    public function test_can_echo_a_phrase(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $result = $multiTenancy->echoPhrase('Hello, World!');
+        $this->assertSame('Hello, World!', $result);
+    }
 
-it('returns false for hasTenant when no tenant is set', function () {
-    $multiTenancy = new MultiTenancy;
-    expect($multiTenancy->hasTenant())->toBeFalse();
-});
+    public function test_returns_false_for_has_tenant_when_no_tenant_is_set(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $this->assertFalse($multiTenancy->hasTenant());
+    }
 
-it('returns null for getTenant when no tenant is set', function () {
-    $multiTenancy = new MultiTenancy;
-    expect($multiTenancy->getTenant())->toBeNull();
-});
+    public function test_returns_null_for_get_tenant_when_no_tenant_is_set(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $this->assertNull($multiTenancy->getTenant());
+    }
 
-it('returns null for getTenantId when no tenant is set', function () {
-    $multiTenancy = new MultiTenancy;
-    expect($multiTenancy->getTenantId())->toBeNull();
-});
+    public function test_returns_null_for_get_tenant_id_when_no_tenant_is_set(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $this->assertNull($multiTenancy->getTenantId());
+    }
 
-it('returns empty array for getTenantDatabases when no tenant is set', function () {
-    $multiTenancy = new MultiTenancy;
-    expect($multiTenancy->getTenantDatabases())->toBe([]);
-});
+    public function test_returns_empty_array_for_get_tenant_databases_when_no_tenant_is_set(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $this->assertSame([], $multiTenancy->getTenantDatabases());
+    }
 
-it('can reset tenant context', function () {
-    $multiTenancy = new MultiTenancy;
-    $multiTenancy->resetTenant();
-    expect($multiTenancy->hasTenant())->toBeFalse();
-});
+    public function test_can_reset_tenant_context(): void
+    {
+        $multiTenancy = new MultiTenancy;
+        $multiTenancy->resetTenant();
+        $this->assertFalse($multiTenancy->hasTenant());
+    }
+}

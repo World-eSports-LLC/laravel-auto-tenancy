@@ -2,7 +2,7 @@
 
 namespace Worldesports\MultiTenancy\Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
 use Worldesports\MultiTenancy\Tests\TestCase;
@@ -10,7 +10,7 @@ use Worldesports\MultiTenancy\Tests\TestUser;
 
 class CommandTest extends TestCase
 {
-    use RefreshDatabase;
+    use UsesTestMigrations;
 
     protected function setUp(): void
     {
@@ -24,7 +24,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function tenant_status_command_shows_correct_information()
+    public function testTenantStatusCommandShowsCorrectInformation()
     {
         // Create test tenant
         $tenant = Tenant::create([
@@ -36,12 +36,9 @@ class CommandTest extends TestCase
             'tenant_id' => $tenant->id,
             'name' => 'test_db',
             'connection_details' => [
-                'driver' => 'mysql',
-                'host' => '127.0.0.1',
-                'port' => '3306',
-                'database' => 'test_tenant_db',
-                'username' => 'root',
-                'password' => '',
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
             ],
         ]);
 
@@ -51,7 +48,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function tenant_status_command_with_list_option()
+    public function testTenantStatusCommandWithListOption()
     {
         // Create test tenant
         $tenant = Tenant::create([
@@ -65,7 +62,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function tenant_status_command_with_specific_tenant()
+    public function testTenantStatusCommandWithSpecificTenant()
     {
         // Create test tenant
         $tenant = Tenant::create([
@@ -79,9 +76,9 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function install_command_publishes_files()
+    public function testInstallCommandPublishesFiles()
     {
-        $this->artisan('tenant:install --force')
+        $this->artisan('tenant:install --force --skip-auth-check')
             ->expectsOutput('🚀 Installing Laravel Multi-Tenancy Package')
             ->expectsOutput('🎉 Multi-tenancy package installation completed!')
             ->assertExitCode(0);

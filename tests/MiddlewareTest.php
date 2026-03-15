@@ -2,11 +2,8 @@
 
 namespace Worldesports\MultiTenancy\Tests;
 
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Middleware\SetTenant;
 use Worldesports\MultiTenancy\Models\Tenant;
@@ -14,39 +11,26 @@ use Worldesports\MultiTenancy\Models\TenantDatabase;
 
 class MiddlewareTest extends TestCase
 {
-    use RefreshDatabase;
+    use UsesTestMigrations;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->runPackageMigrations();
-
-        // Create test user table and user
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamps();
-        });
-
-        DB::table('users')->insert([
-            'id' => 1,
+        $this->user = TestUser::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
     }
 
     /** @test */
-    public function middleware_sets_tenant_for_authenticated_user()
+    public function test_middleware_sets_tenant_for_authenticated_user()
     {
         // Create tenant for user
         $tenant = $this->createTenantWithDatabase();
 
-        // Create authenticated user mock
-        $user = (object) ['id' => 1];
+        // Create authenticated user
+        $user = $this->user;
 
         // Create request with authenticated user
         $request = Request::create('/test', 'GET');
@@ -55,7 +39,7 @@ class MiddlewareTest extends TestCase
         });
 
         // Ensure no tenant is set initially
-        expect(MultiTenancy::hasTenant())->toBeFalse();
+        $this->assertFalse(MultiTenancy::hasTenant());
 
         // Process request through middleware
         $middleware = new SetTenant;
@@ -64,13 +48,13 @@ class MiddlewareTest extends TestCase
         });
 
         // Check that tenant was set
-        expect(MultiTenancy::hasTenant())->toBeTrue();
-        expect(MultiTenancy::getTenant()->id)->toBe($tenant->id);
-        expect($response->getContent())->toBe('OK');
+        $this->assertTrue(MultiTenancy::hasTenant());
+        $this->assertSame($tenant->id, MultiTenancy::getTenant()->id);
+        $this->assertSame('OK', $response->getContent());
     }
 
     /** @test */
-    public function middleware_does_nothing_for_unauthenticated_user()
+    public function test_middleware_does_nothing_for_unauthenticated_user()
     {
         // Create request without authenticated user
         $request = Request::create('/test', 'GET');
@@ -79,7 +63,7 @@ class MiddlewareTest extends TestCase
         });
 
         // Ensure no tenant is set initially
-        expect(MultiTenancy::hasTenant())->toBeFalse();
+        $this->assertFalse(MultiTenancy::hasTenant());
 
         // Process request through middleware
         $middleware = new SetTenant;
@@ -88,15 +72,17 @@ class MiddlewareTest extends TestCase
         });
 
         // Check that no tenant was set
-        expect(MultiTenancy::hasTenant())->toBeFalse();
-        expect($response->getContent())->toBe('OK');
+        $this->assertFalse(MultiTenancy::hasTenant());
+        $this->assertSame('OK', $response->getContent());
     }
 
     /** @test */
-    public function middleware_handles_user_without_tenant_gracefully()
+    public function test_middleware_handles_user_without_tenant_gracefully()
     {
-        // Create authenticated user mock (user ID 2 doesn't have a tenant)
-        $user = (object) ['id' => 2];
+        $user = TestUser::factory()->create([
+            'name' => 'Test User 2',
+            'email' => 'test2@example.com',
+        ]);
 
         // Create request with authenticated user
         $request = Request::create('/test', 'GET');
@@ -105,7 +91,7 @@ class MiddlewareTest extends TestCase
         });
 
         // Ensure no tenant is set initially
-        expect(MultiTenancy::hasTenant())->toBeFalse();
+        $this->assertFalse(MultiTenancy::hasTenant());
 
         // Process request through middleware
         $middleware = new SetTenant;
@@ -113,15 +99,16 @@ class MiddlewareTest extends TestCase
             return response('OK');
         });
 
-        // Check that no tenant was set but request continued normally
-        expect(MultiTenancy::hasTenant())->toBeFalse();
-        expect($response->getContent())->toBe('OK');
+        // Check that no tenant was set and request was redirected
+        $this->assertFalse(MultiTenancy::hasTenant());
+        $this->assertTrue($response->isRedirect());
+        $this->assertSame('http://localhost', $response->getTargetUrl());
     }
 
     protected function createTenantWithDatabase(): Tenant
     {
         $tenant = Tenant::create([
-            'user_id' => 1,
+            'user_id' => $this->user->id,
             'name' => 'Test Company',
         ]);
 
@@ -136,31 +123,5 @@ class MiddlewareTest extends TestCase
         ]);
 
         return $tenant->fresh(['databases']);
-    }
-
-    protected function runPackageMigrations(): void
-    {
-        Schema::create('tenants', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->timestamps();
-        });
-
-        Schema::create('tenant_databases', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->json('connection_details');
-            $table->timestamps();
-        });
-
-        Schema::create('tenant_database_metadata', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_database_id')->constrained()->cascadeOnDelete();
-            $table->string('key');
-            $table->text('value')->nullable();
-            $table->timestamps();
-        });
     }
 }

@@ -54,6 +54,20 @@ class TenantDatabase extends Model
             get: function ($value) {
                 if (config('multi-tenancy.encrypt_connection_details', false) && $value) {
                     try {
+                        $decoded = json_decode($value, true);
+
+                        if (is_array($decoded) && array_key_exists('encrypted', $decoded)) {
+                            return json_decode(decrypt($decoded['encrypted']), true);
+                        }
+
+                        if (is_array($decoded)) {
+                            return $decoded;
+                        }
+
+                        if (is_string($decoded)) {
+                            return json_decode(decrypt($decoded), true);
+                        }
+
                         return json_decode(decrypt($value), true);
                     } catch (\Exception $e) {
                         // Fallback to unencrypted for backward compatibility
@@ -65,7 +79,9 @@ class TenantDatabase extends Model
             },
             set: function ($value) {
                 if (config('multi-tenancy.encrypt_connection_details', false)) {
-                    return encrypt(json_encode($value));
+                    return json_encode([
+                        'encrypted' => encrypt(json_encode($value)),
+                    ]);
                 }
 
                 return json_encode($value);
@@ -98,8 +114,10 @@ class TenantDatabase extends Model
     {
         try {
             $details = $this->connection_details;
-            $dsn = "{$details['driver']}:host={$details['host']};port={$details['port']};dbname={$details['database']}";
-            $pdo = new \PDO($dsn, $details['username'], $details['password']);
+            $dsn = $this->buildDsn($details);
+            $username = $details['username'] ?? '';
+            $password = $details['password'] ?? '';
+            $pdo = new \PDO($dsn, $username, $password);
             $pdo->query('SELECT 1');
 
             return true;
@@ -115,10 +133,67 @@ class TenantDatabase extends Model
      */
     public function scopeHealthy(Builder $query): Builder
     {
-        return $query->where(function ($query) {
-            // Add any health check logic here
-            // For now, just return all, but this could be extended
-            // to check connection status, last successful connection, etc.
-        });
+        // For now, just return all; add health check conditions here in future if needed.
+        return $query;
+    }
+
+    private function buildDsn(array $details): string
+    {
+        $driver = $details['driver'] ?? null;
+        if (! $driver) {
+            throw new \InvalidArgumentException('Database driver is not specified.');
+        }
+
+        return match ($driver) {
+            'sqlite' => $this->buildSqliteDsn($details),
+            'sqlsrv' => $this->buildSqlsrvDsn($details),
+            'pgsql' => $this->buildStandardDsn('pgsql', $details),
+            'mysql' => $this->buildStandardDsn('mysql', $details),
+            default => throw new \InvalidArgumentException("Unsupported database driver [{$driver}]."),
+        };
+    }
+
+    private function buildSqliteDsn(array $details): string
+    {
+        $database = $details['database'] ?? null;
+        if (! $database) {
+            throw new \InvalidArgumentException('SQLite connection requires a database (path).');
+        }
+
+        return "sqlite:{$database}";
+    }
+
+    private function buildStandardDsn(string $driver, array $details): string
+    {
+        $host = $details['host'] ?? null;
+        $database = $details['database'] ?? null;
+        if (! $host || ! $database) {
+            throw new \InvalidArgumentException("{$driver} connection requires both host and database.");
+        }
+
+        $port = $details['port'] ?? null;
+        $dsn = "{$driver}:host={$host};dbname={$database}";
+        if ($port) {
+            $dsn .= ";port={$port}";
+        }
+
+        return $dsn;
+    }
+
+    private function buildSqlsrvDsn(array $details): string
+    {
+        $host = $details['host'] ?? null;
+        $database = $details['database'] ?? null;
+        if (! $host || ! $database) {
+            throw new \InvalidArgumentException('sqlsrv connection requires both host and database.');
+        }
+
+        $port = $details['port'] ?? null;
+        $server = $host;
+        if ($port) {
+            $server .= ',' . $port;
+        }
+
+        return "sqlsrv:Server={$server};Database={$database}";
     }
 }

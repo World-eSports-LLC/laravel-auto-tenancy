@@ -77,11 +77,27 @@ class CreateTenantCommand extends Command
         }
 
         // Validate database name format
-        if (! $this->validateDatabaseName($dbName)) {
+        if (! $this->validateDatabaseName($dbName, $dbDriver)) {
             return self::FAILURE;
         }
 
         // Validate connection details format
+        $rules = [
+            'driver' => 'required|string|in:mysql,pgsql,sqlite,sqlsrv',
+            'database' => $dbDriver === 'sqlite'
+                ? 'required|string'
+                : 'required|string|max:64|regex:/^[a-zA-Z0-9_]+$/',
+        ];
+
+        if ($dbDriver !== 'sqlite') {
+            $rules = array_merge($rules, [
+                'host' => 'required|string|max:255',
+                'port' => 'required|integer|between:1,65535',
+                'username' => 'required|string|max:32',
+                'password' => 'required|string|min:1',
+            ]);
+        }
+
         $validator = Validator::make([
             'driver' => $dbDriver,
             'host' => $dbHost,
@@ -89,14 +105,7 @@ class CreateTenantCommand extends Command
             'database' => $dbName,
             'username' => $dbUsername,
             'password' => $dbPassword,
-        ], [
-            'driver' => 'required|string|in:mysql,pgsql,sqlite,sqlsrv',
-            'host' => 'required|string|max:255',
-            'port' => 'required|integer|between:1,65535',
-            'database' => 'required|string|max:64|regex:/^[a-zA-Z0-9_]+$/',
-            'username' => 'required|string|max:32',
-            'password' => 'required|string|min:1',
-        ]);
+        ], $rules);
 
         if ($validator->fails()) {
             $this->error('Validation failed:');
@@ -130,7 +139,7 @@ class CreateTenantCommand extends Command
 
             // Test connection
             $this->info('Testing database connection...');
-            $this->testConnection($dbHost, $dbPort ?? 3306, $dbUsername, $dbPassword, $dbName, $dbDriver);
+            $this->testConnection($dbHost, $dbPort, $dbUsername, $dbPassword, $dbName, $dbDriver);
 
             // Create tenant
             $this->info('Creating tenant...');
@@ -218,8 +227,16 @@ class CreateTenantCommand extends Command
         $connection->statement("CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
     }
 
-    private function testConnection(string $host, int $port, string $username, string $password, string $database, string $driver): void
+    private function testConnection(string $host, ?int $port, ?string $username, ?string $password, string $database, string $driver): void
     {
+        if ($driver === 'sqlite') {
+            $dsn = "sqlite:{$database}";
+            $pdo = new \PDO($dsn);
+            $pdo->query('SELECT 1');
+
+            return;
+        }
+
         $dsn = "{$driver}:host={$host};port={$port};dbname={$database}";
         $pdo = new \PDO($dsn, $username, $password);
         $pdo->query('SELECT 1');
@@ -233,6 +250,10 @@ class CreateTenantCommand extends Command
     private function validateDatabaseConnection(array $connectionDetails): bool
     {
         try {
+            if (($connectionDetails['driver'] ?? null) === 'sqlite') {
+                return true;
+            }
+
             // Test connection without database first (for creation)
             $dsn = "{$connectionDetails['driver']}:host={$connectionDetails['host']};port={$connectionDetails['port']}";
             $pdo = new \PDO($dsn, $connectionDetails['username'], $connectionDetails['password']);
@@ -253,8 +274,18 @@ class CreateTenantCommand extends Command
      *
      * @used
      */
-    private function validateDatabaseName(string $dbName): bool
+    private function validateDatabaseName(string $dbName, string $driver): bool
     {
+        if ($driver === 'sqlite') {
+            if ($dbName === '') {
+                $this->error('SQLite database name/path cannot be empty');
+
+                return false;
+            }
+
+            return true;
+        }
+
         // Validate database name format
         if (! preg_match('/^[a-zA-Z0-9_]+$/', $dbName)) {
             $this->error('Database name can only contain letters, numbers, and underscores');

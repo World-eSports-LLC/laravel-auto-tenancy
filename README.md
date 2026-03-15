@@ -1,11 +1,8 @@
 # Laravel Multi-Tenancy Package
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/keithprinkey-ops/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/multi-tenancy)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/keithprinkey-ops/laravel-multi-tenancy/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/keithprinkey-ops/laravel-multi-tenancy/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/keithprinkey-ops/laravel-multi-tenancy/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/keithprinkey-ops/laravel-multi-tenancy/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/keithprinkey-ops/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/keithprinkey-ops/laravel-auto-tenancy/stats)
 
-A Laravel package that enables **post-authentication multi-tenancy** for any Laravel application. Simply install the package and your Laravel app becomes multi-tenant with automatic tenant detection and database switching.
+> **Authentication required**: This package works post-authentication. Make sure your Laravel app already has authentication scaffolding (Breeze, Jetstream, Fortify, etc.). The installer will detect missing auth and guide you through installing [Laravel Jetstream](https://jetstream.laravel.com/) with Livewire.
 
 ## Features
 
@@ -34,7 +31,16 @@ composer require worldesports/multi-tenancy
 Quick installation with setup:
 
 ```bash
-php artisan tenant:install --migrate
+php artisan tenant:install --force --migrate
+```
+
+If authentication is missing, the installer will prompt you to install Jetstream:
+
+```bash
+composer require laravel/jetstream
+php artisan jetstream:install livewire
+npm install && npm run build
+php artisan migrate
 ```
 
 Or manual installation:
@@ -205,6 +211,12 @@ php artisan tenant:status --tenant=1
 
 # Test all database connections
 php artisan tenant:status --connections
+
+# Test connections for one driver only
+php artisan tenant:status --connections --driver=mysql
+php artisan tenant:status --connections --driver=pgsql
+php artisan tenant:status --connections --driver=sqlite
+php artisan tenant:status --connections --driver=sqlsrv
 ```
 
 ### Creating Tenants
@@ -286,6 +298,15 @@ php artisan tenant:seed
 
 # Seed with specific seeder
 php artisan tenant:seed --class=UserSeeder
+
+# Test all tenant database connections
+php artisan tenant:status --connections
+
+# Test connections for one driver only
+php artisan tenant:status --connections --driver=mysql
+php artisan tenant:status --connections --driver=pgsql
+php artisan tenant:status --connections --driver=sqlite
+php artisan tenant:status --connections --driver=sqlsrv
 ```
 
 ### Tenant Cleanup

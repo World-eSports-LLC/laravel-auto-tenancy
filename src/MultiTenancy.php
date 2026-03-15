@@ -57,17 +57,21 @@ class MultiTenancy
         $connectionName = 'tenant_connection_'.$tenantDatabase->id;
 
         // Check if connection is already cached
-        if (isset(static::$connectionCache[$connectionName])) {
-            $this->currentConnectionName = $connectionName;
+        $useCache = config('multi-tenancy.cache_connections', true);
 
-            return $connectionName;
+        if ($useCache && isset(static::$connectionCache[$connectionName])) {
+            if (Config::has("database.connections.$connectionName")) {
+                $this->currentConnectionName = $connectionName;
+
+                return $connectionName;
+            }
+
+            unset(static::$connectionCache[$connectionName]);
         }
 
         $connectionDetails = $tenantDatabase->connection_details;
 
-        if (! isset($connectionDetails['driver'])) {
-            throw new InvalidArgumentException('Database driver is required.');
-        }
+        $this->validateConnectionDetails($connectionDetails);
 
         $config = [
             'driver' => $connectionDetails['driver'],
@@ -114,6 +118,7 @@ class MultiTenancy
                 $config['strict'] = $connectionDetails['strict'] ?? true;
                 $config['engine'] = $connectionDetails['engine'] ?? null;
                 break;
+
         }
 
         Config::set("database.connections.$connectionName", $config);
@@ -127,7 +132,9 @@ class MultiTenancy
         }
 
         // Cache the connection
-        static::$connectionCache[$connectionName] = true;
+        if ($useCache) {
+            static::$connectionCache[$connectionName] = true;
+        }
 
         $this->currentConnectionName = $connectionName;
 
@@ -238,5 +245,34 @@ class MultiTenancy
     public function echoPhrase(string $phrase): string
     {
         return $phrase;
+    }
+
+    private function validateConnectionDetails(array $connectionDetails): void
+    {
+        if (! isset($connectionDetails['driver'])) {
+            throw new InvalidArgumentException('Database driver is required.');
+        }
+
+        $driver = $connectionDetails['driver'];
+
+        if ($driver === 'sqlite') {
+            if (empty($connectionDetails['database'])) {
+                throw new InvalidArgumentException('Database name is required.');
+            }
+
+            return;
+        }
+
+        if (empty($connectionDetails['database'])) {
+            throw new InvalidArgumentException('Database name is required.');
+        }
+
+        if (empty($connectionDetails['username'])) {
+            throw new InvalidArgumentException('Database username is required.');
+        }
+
+        if (! array_key_exists('password', $connectionDetails)) {
+            throw new InvalidArgumentException('Database password is required.');
+        }
     }
 }

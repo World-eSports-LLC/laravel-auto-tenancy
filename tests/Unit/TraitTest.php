@@ -3,7 +3,9 @@
 namespace Worldesports\MultiTenancy\Tests\Unit;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
@@ -14,7 +16,7 @@ use Worldesports\MultiTenancy\Traits\TenantScoped;
 
 class TraitTest extends TestCase
 {
-    use RefreshDatabase;
+    use UsesTestMigrations;
 
     protected function setUp(): void
     {
@@ -35,11 +37,12 @@ class TraitTest extends TestCase
                 'database' => ':memory:',
                 'prefix' => '',
             ],
+            'is_primary' => true,
         ]);
     }
 
     /** @test */
-    public function belongs_to_tenant_trait_sets_connection()
+    public function test_belongs_to_tenant_trait_sets_connection()
     {
         $model = new class extends Model
         {
@@ -50,16 +53,26 @@ class TraitTest extends TestCase
             protected $fillable = ['name'];
         };
 
+        // Debug: Check if tenant and database exist
+        $this->assertNotNull($this->tenant);
+        $this->assertNotNull($this->tenantDatabase);
+        $this->assertEquals(1, $this->tenant->databases()->count());
+
+        // Debug: Check primary database
+        $primaryDb = $this->tenant->primaryDatabase();
+        $this->assertNotNull($primaryDb, 'Primary database should not be null');
+        $this->assertEquals($this->tenantDatabase->id, $primaryDb->id);
+
         MultiTenancy::setTenant($this->tenant);
 
         $connectionName = $model->getConnectionName();
 
         $this->assertNotNull($connectionName);
-        $this->assertStringContains('tenant_connection_', $connectionName);
+        $this->assertStringContainsString('tenant_connection_', $connectionName);
     }
 
     /** @test */
-    public function tenant_scoped_trait_adds_tenant_id()
+    public function test_tenant_scoped_trait_adds_tenant_id()
     {
         $model = new class extends Model
         {
@@ -72,15 +85,24 @@ class TraitTest extends TestCase
 
         MultiTenancy::setTenant($this->tenant);
 
+        $connectionName = MultiTenancy::getCurrentConnectionName();
+        Schema::connection($connectionName)->create('test_scoped_models', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->unsignedBigInteger('tenant_id')->nullable();
+            $table->timestamps();
+        });
+
         // Simulate model creation
-        $instance = new $model(['name' => 'Test']);
+        $instance = $model->newInstance(['name' => 'Test']);
+        $instance->save();
 
         // The creating event should set tenant_id
-        $this->assertEquals($this->tenant->id, $instance->tenant_id ?? MultiTenancy::getTenantId());
+        $this->assertEquals($this->tenant->id, $instance->tenant_id);
     }
 
     /** @test */
-    public function model_can_bypass_tenant_scoping()
+    public function test_model_can_bypass_tenant_scoping()
     {
         $model = new class extends Model
         {
