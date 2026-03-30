@@ -5,6 +5,7 @@ namespace Worldesports\MultiTenancy\Traits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
+use Worldesports\MultiTenancy\Models\Tenant;
 
 /**
  * Trait for models that need tenant-aware ID scoping
@@ -61,6 +62,6 @@ trait TenantScoped
      */
     public function tenant()
     {
-        return $this->belongsTo(\Worldesports\MultiTenancy\Models\Tenant::class);
+        return $this->belongsTo(Tenant::class);
     }
 }

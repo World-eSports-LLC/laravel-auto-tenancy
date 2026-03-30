@@ -2,10 +2,10 @@
 
 namespace Worldesports\MultiTenancy\Tests\Feature;
 
-use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Tests\TestCase;
 use Worldesports\MultiTenancy\Tests\TestUser;
 

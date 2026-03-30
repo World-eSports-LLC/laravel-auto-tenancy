@@ -3,6 +3,7 @@
 namespace Worldesports\MultiTenancy\Listeners;
 
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Database\Eloquent\Model;
 use Worldesports\MultiTenancy\Models\Tenant;
 
 class CreateTenantOnRegistration
@@ -16,8 +17,8 @@ class CreateTenantOnRegistration
 
         $user = $event->user;
 
-        /** @var \Illuminate\Database\Eloquent\Model $user */
-        if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
+        /** @var Model $user */
+        if (! ($user instanceof Model)) {
             return;
         }
 

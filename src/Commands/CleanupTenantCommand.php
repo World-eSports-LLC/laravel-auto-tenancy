@@ -125,7 +125,7 @@ class CleanupTenantCommand extends Command
         $pdo = new \PDO("pgsql:host={$host};port={$port};dbname=postgres", $username, $password);
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $identifier = $this->quotePgsqlIdentifier($database);
-        $pdo->exec("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{$database}' AND pid <> pg_backend_pid()") ;
+        $pdo->exec("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{$database}' AND pid <> pg_backend_pid()");
         $pdo->exec("DROP DATABASE IF EXISTS {$identifier}");
     }
 

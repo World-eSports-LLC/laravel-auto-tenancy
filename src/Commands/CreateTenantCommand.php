@@ -3,7 +3,6 @@
 namespace Worldesports\MultiTenancy\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
@@ -40,6 +39,7 @@ class CreateTenantCommand extends Command
 
         if (! $user) {
             $this->error("User with ID {$userInput} not found.");
+
             return self::FAILURE;
         }
 
@@ -237,7 +237,6 @@ class CreateTenantCommand extends Command
         }
     }
 
-
     private function testConnection(string $host, ?int $port, ?string $username, ?string $password, string $database, string $driver): void
     {
         if ($driver === 'sqlite') {
@@ -375,10 +374,12 @@ class CreateTenantCommand extends Command
 
                 default:
                     $this->error("Database creation not supported for driver: {$driver}");
+
                     return false;
             }
         } catch (\Exception $e) {
             $this->error("Database creation error: {$e->getMessage()}");
+
             return false;
         }
     }
@@ -394,10 +395,12 @@ class CreateTenantCommand extends Command
             $pdo->exec($sql);
 
             $this->info("✅ MySQL database '{$dbName}' created successfully");
+
             return true;
         } catch (\PDOException $e) {
             if (strpos($e->getMessage(), 'already exists') !== false) {
                 $this->info("ℹ️  Database '{$dbName}' already exists");
+
                 return true;
             }
             throw $e;
@@ -415,6 +418,7 @@ class CreateTenantCommand extends Command
             $result = $pdo->query("SELECT 1 FROM pg_database WHERE datname = '{$dbName}'");
             if ($result->rowCount() > 0) {
                 $this->info("ℹ️  Database '{$dbName}' already exists");
+
                 return true;
             }
 
@@ -423,6 +427,7 @@ class CreateTenantCommand extends Command
             $pdo->exec($sql);
 
             $this->info("✅ PostgreSQL database '{$dbName}' created successfully");
+
             return true;
         } catch (\PDOException $e) {
             throw $e;
@@ -440,6 +445,7 @@ class CreateTenantCommand extends Command
             $result = $pdo->query("SELECT 1 FROM sys.databases WHERE name = '{$dbName}'");
             if ($result->rowCount() > 0) {
                 $this->info("ℹ️  Database '{$dbName}' already exists");
+
                 return true;
             }
 
@@ -448,6 +454,7 @@ class CreateTenantCommand extends Command
             $pdo->exec($sql);
 
             $this->info("✅ SQL Server database '{$dbName}' created successfully");
+
             return true;
         } catch (\PDOException $e) {
             throw $e;

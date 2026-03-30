@@ -3,7 +3,9 @@
 namespace Worldesports\MultiTenancy\Middleware;
 
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 
@@ -13,8 +15,8 @@ class SetTenant
     {
         try {
             if ($user = $request->user()) {
-                /** @var \Illuminate\Database\Eloquent\Model $user */
-                if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
+                /** @var Model $user */
+                if (! ($user instanceof Model)) {
                     $response = $this->handleError($request, $action, 'Invalid user model');
                     if ($response) {
                         return $response;
@@ -60,7 +62,7 @@ class SetTenant
 
             case 'redirect':
                 $routeName = config('multi-tenancy.tenant_setup_route', 'tenant.setup');
-                if ($routeName && \Illuminate\Support\Facades\Route::has($routeName)) {
+                if ($routeName && Route::has($routeName)) {
                     return redirect()->route($routeName)->with('error', 'Please contact support to set up your tenant.');
                 }
 

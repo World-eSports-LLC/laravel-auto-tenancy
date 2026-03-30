@@ -173,7 +173,7 @@ class TenantDatabase extends Model
         $port = $details['port'] ?? null;
         $server = $host;
         if ($port) {
-            $server .= ',' . $port;
+            $server .= ','.$port;
         }
 
         return "sqlsrv:Server={$server};Database={$database}";

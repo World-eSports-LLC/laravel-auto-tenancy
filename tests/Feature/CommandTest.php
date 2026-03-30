@@ -2,9 +2,9 @@
 
 namespace Worldesports\MultiTenancy\Tests\Feature;
 
-use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Tests\TestCase;
 use Worldesports\MultiTenancy\Tests\TestUser;
 
@@ -24,7 +24,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testTenantStatusCommandShowsCorrectInformation()
+    public function test_tenant_status_command_shows_correct_information()
     {
         // Create test tenant
         $tenant = Tenant::create([
@@ -48,7 +48,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testTenantStatusCommandWithListOption()
+    public function test_tenant_status_command_with_list_option()
     {
         // Create test tenant
         $tenant = Tenant::create([
@@ -62,7 +62,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testTenantStatusCommandWithSpecificTenant()
+    public function test_tenant_status_command_with_specific_tenant()
     {
         // Create test tenant
         $tenant = Tenant::create([
@@ -76,7 +76,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testInstallCommandPublishesFiles()
+    public function test_install_command_publishes_files()
     {
         $this->artisan('tenant:install --force --skip-auth-check')
             ->expectsOutput('🚀 Installing Laravel Multi-Tenancy Package')

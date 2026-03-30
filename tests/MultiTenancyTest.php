@@ -2,10 +2,10 @@
 
 namespace Worldesports\MultiTenancy\Tests;
 
-use Worldesports\MultiTenancy\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
 use Worldesports\MultiTenancy\Models\TenantDatabaseMetadata;
+use Worldesports\MultiTenancy\MultiTenancy;
 
 class MultiTenancyTest extends TestCase
 {

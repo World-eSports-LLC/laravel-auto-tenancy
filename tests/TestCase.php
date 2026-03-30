@@ -4,14 +4,16 @@ namespace Worldesports\MultiTenancy\Tests;
 
 use AllowDynamicProperties;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Foundation\Auth\User;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\MultiTenancyServiceProvider;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 
 #[AllowDynamicProperties]
 class TestCase extends Orchestra
 {
     protected static ?string $testMigrationsPath = null;
-
 
     protected function setUp(): void
     {
@@ -25,8 +27,8 @@ class TestCase extends Orchestra
     protected function tearDown(): void
     {
         try {
-            if (class_exists(\Worldesports\MultiTenancy\Facades\MultiTenancy::class)) {
-                \Worldesports\MultiTenancy\Facades\MultiTenancy::resetTenant();
+            if (class_exists(MultiTenancy::class)) {
+                MultiTenancy::resetTenant();
             }
         } catch (\Throwable $e) {
             // Avoid failing tests due to cleanup issues.
@@ -61,7 +63,7 @@ class TestCase extends Orchestra
 
     protected function defineDatabaseMigrations(): void
     {
-        if (! in_array(\Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations::class, class_uses_recursive(static::class), true)) {
+        if (! in_array(UsesTestMigrations::class, class_uses_recursive(static::class), true)) {
             return;
         }
 
@@ -146,7 +148,7 @@ PHP;
 }
 
 // Simple test user model - only for package testing
-class TestUser extends \Illuminate\Foundation\Auth\User
+class TestUser extends User
 {
     protected $table = 'users';
 

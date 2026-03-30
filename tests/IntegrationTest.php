@@ -3,14 +3,13 @@
 namespace Worldesports\MultiTenancy\Tests;
 
 use Illuminate\Auth\Events\Login;
-use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
-use Worldesports\MultiTenancy\Tests\TestUser;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 
 class iIntegrationTest extends TestCase
 {

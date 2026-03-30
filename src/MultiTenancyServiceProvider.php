@@ -16,9 +16,9 @@ use Worldesports\MultiTenancy\Commands\TenantMigrateCommand;
 use Worldesports\MultiTenancy\Commands\TenantSeedCommand;
 use Worldesports\MultiTenancy\Listeners\CreateTenantOnRegistration;
 use Worldesports\MultiTenancy\Listeners\SetTenantOnLogin;
-use Worldesports\MultiTenancy\Support\AuthScaffoldingDetector;
-use Worldesports\MultiTenancy\Middleware\SetTenant;
 use Worldesports\MultiTenancy\Middleware\RequireTenant;
+use Worldesports\MultiTenancy\Middleware\SetTenant;
+use Worldesports\MultiTenancy\Support\AuthScaffoldingDetector;
 
 class MultiTenancyServiceProvider extends PackageServiceProvider
 {

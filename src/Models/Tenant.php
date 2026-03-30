@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $subdomain
  * @property Carbon $created_at
  * @property Carbon $updated_at
- * @property-read \Illuminate\Database\Eloquent\Model $user
+ * @property-read Model $user
  * @property-read Collection<int, TenantDatabase> $databases
  *
  * @mixin Builder

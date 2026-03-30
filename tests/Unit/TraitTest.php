@@ -2,13 +2,14 @@
 
 namespace Worldesports\MultiTenancy\Tests\Unit;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Tests\TestCase;
 use Worldesports\MultiTenancy\Tests\TestUser;
 use Worldesports\MultiTenancy\Traits\BelongsToTenant;
@@ -115,6 +116,6 @@ class TraitTest extends TestCase
 
         $query = $model::withoutTenantScope();
 
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Builder::class, $query);
+        $this->assertInstanceOf(Builder::class, $query);
     }
 }

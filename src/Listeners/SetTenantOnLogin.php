@@ -3,14 +3,16 @@
 namespace Worldesports\MultiTenancy\Listeners;
 
 use Illuminate\Auth\Events\Login;
+use Illuminate\Database\Eloquent\Model;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
+use Worldesports\MultiTenancy\Models\TenantDatabase;
 
 class SetTenantOnLogin
 {
     public function handle(Login $event): void
     {
-        /** @var \Illuminate\Database\Eloquent\Model $user */
+        /** @var Model $user */
         $user = $event->user;
 
         // Strategy 1: Direct user_id mapping (current approach)
@@ -36,8 +38,8 @@ class SetTenantOnLogin
 
             // Log successful tenant detection for debugging
             if (config('multi-tenancy.security.log_tenant_switches', false)) {
-                /** @var \Illuminate\Database\Eloquent\Model $user */
-                $userId = $user instanceof \Illuminate\Database\Eloquent\Model ? $user->getKey() : 'unknown';
+                /** @var Model $user */
+                $userId = $user instanceof Model ? $user->getKey() : 'unknown';
                 \Log::info("Tenant switched for user {$userId} to tenant {$tenant->id} ({$tenant->name})");
             }
         }
@@ -48,8 +50,8 @@ class SetTenantOnLogin
      */
     private function findTenantByUserId($user): ?Tenant
     {
-        /** @var \Illuminate\Database\Eloquent\Model $user */
-        if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
+        /** @var Model $user */
+        if (! ($user instanceof Model)) {
             return null;
         }
 
@@ -79,8 +81,8 @@ class SetTenantOnLogin
         if ($tenant) {
             // NOTE: Do not change tenant ownership/user_id based solely on email domain.
             // We only use the domain to *discover* the tenant, not to persist any ownership mapping.
-            /** @var \Illuminate\Database\Eloquent\Model $user */
-            $userId = $user instanceof \Illuminate\Database\Eloquent\Model ? $user->getKey() : 'unknown';
+            /** @var Model $user */
+            $userId = $user instanceof Model ? $user->getKey() : 'unknown';
             \Log::info("Auto-detected tenant {$tenant->id} for user {$userId} via email domain: {$domain}");
         }
 
@@ -192,7 +194,7 @@ class SetTenantOnLogin
         // Create a database for this tenant using same connection but different DB name
         $dbName = 'tenant_'.$tenant->id.'_'.uniqid();
 
-        \Worldesports\MultiTenancy\Models\TenantDatabase::create([
+        TenantDatabase::create([
             'tenant_id' => $tenant->id,
             'name' => $dbName,
             'connection_details' => [

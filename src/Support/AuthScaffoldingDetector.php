@@ -48,8 +48,8 @@ class AuthScaffoldingDetector
     public function hasCustomAuth(): bool
     {
         return File::exists(app_path('Http/Controllers/Auth')) &&
-            !$this->hasBreeze() &&
-            !$this->hasJetstream();
+            ! $this->hasBreeze() &&
+            ! $this->hasJetstream();
     }
 
     /**
@@ -99,7 +99,7 @@ class AuthScaffoldingDetector
     {
         $issues = [];
 
-        if (!$this->hasBreeze() && !$this->hasJetstream() && !$this->hasFortify() && !$this->hasSanctum() && !$this->hasCustomAuth()) {
+        if (! $this->hasBreeze() && ! $this->hasJetstream() && ! $this->hasFortify() && ! $this->hasSanctum() && ! $this->hasCustomAuth()) {
             $issues[] = 'No authentication scaffolding detected';
         }
 

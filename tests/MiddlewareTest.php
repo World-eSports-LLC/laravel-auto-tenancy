@@ -2,12 +2,12 @@
 
 namespace Worldesports\MultiTenancy\Tests;
 
-use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Illuminate\Http\Request;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Middleware\SetTenant;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 
 class MiddlewareTest extends TestCase
 {
@@ -47,6 +47,7 @@ class MiddlewareTest extends TestCase
         $middleware = new SetTenant;
         $response = $middleware->handle($request, function ($req) use (&$tenantWasSetDuringRequest) {
             $tenantWasSetDuringRequest = MultiTenancy::hasTenant();
+
             return response('OK');
         });
 

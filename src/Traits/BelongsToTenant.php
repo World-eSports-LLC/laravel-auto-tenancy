@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
+use Worldesports\MultiTenancy\Models\Tenant;
 
 trait BelongsToTenant
 {
@@ -50,7 +51,7 @@ trait BelongsToTenant
     {
         if ($tenantId) {
             // Query with a specific tenant's connection without changing global context
-            $tenant = \Worldesports\MultiTenancy\Models\Tenant::find($tenantId);
+            $tenant = Tenant::find($tenantId);
             if ($tenant) {
                 $database = $tenant->databases()
                     ->when($databaseId, fn ($q) => $q->whereKey($databaseId))
@@ -169,17 +170,17 @@ trait BelongsToTenant
     {
         if ($tenantId === null) {
             MultiTenancy::resetTenant();
+
             return;
         }
 
-        $tenant = \Worldesports\MultiTenancy\Models\Tenant::find($tenantId);
+        $tenant = Tenant::find($tenantId);
         if (! $tenant) {
-            throw new \InvalidArgumentException("Tenant with ID {$tenantId} not found.");
+            throw new InvalidArgumentException("Tenant with ID {$tenantId} not found.");
         }
 
         MultiTenancy::setTenant($tenant);
     }
-
 
     /**
      * Bypass tenant scoping for administrative queries

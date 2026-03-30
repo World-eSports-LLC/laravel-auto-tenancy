@@ -2,6 +2,7 @@
 
 namespace Worldesports\MultiTenancy;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -13,10 +14,15 @@ class MultiTenancy
     protected ?Tenant $tenant = null;
 
     protected ?int $tenantId = null;
+
     protected ?int $tenantDatabaseId = null;
+
     protected ?string $currentConnectionName = null;
+
     protected static array $connectionCache = [];
+
     protected ?string $originalConnection = null;
+
     public function setTenant(Tenant $tenant, ?int $databaseId = null): void
     {
         // Store original connection if not already stored
@@ -237,13 +243,13 @@ class MultiTenancy
             return [];
         }
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, \Worldesports\MultiTenancy\Models\TenantDatabase> $databases */
+        /** @var Collection<int, TenantDatabase> $databases */
         $databases = $this->tenant->databases()
             ->with('metadata')
             ->get();
 
         return $databases->map(function ($database) {
-            /** @var \Worldesports\MultiTenancy\Models\TenantDatabase $database */
+            /** @var TenantDatabase $database */
             return [
                 'id' => $database->id,
                 'name' => $database->name,

@@ -2,9 +2,9 @@
 
 namespace Worldesports\MultiTenancy\Tests;
 
-use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 
 class CommandTest extends TestCase
 {
@@ -21,7 +21,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testCreateTenantCommandCreatesTenantWithDatabase()
+    public function test_create_tenant_command_creates_tenant_with_database()
     {
         $this->artisan('tenant:create', [
             'user_id' => 1,
@@ -48,7 +48,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testCreateTenantCommandFailsForNonexistentUser()
+    public function test_create_tenant_command_fails_for_nonexistent_user()
     {
         $this->artisan('tenant:create', [
             'user_id' => 999, // Non-existent user
@@ -66,7 +66,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testCreateTenantCommandFailsIfTenantAlreadyExists()
+    public function test_create_tenant_command_fails_if_tenant_already_exists()
     {
         // Create existing tenant
         Tenant::create([
@@ -90,7 +90,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testCreateTenantCommandValidatesRequiredDatabaseCredentials()
+    public function test_create_tenant_command_validates_required_database_credentials()
     {
         $this->artisan('tenant:create', [
             'user_id' => 1,
@@ -107,7 +107,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testTenantStatusCommandShowsNoTenantsMessage()
+    public function test_tenant_status_command_shows_no_tenants_message()
     {
         $this->artisan('tenant:status')
             ->expectsOutput('🏢 Multi-Tenancy Status')
@@ -117,7 +117,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testTenantStatusCommandShowsExistingTenants()
+    public function test_tenant_status_command_shows_existing_tenants()
     {
         // Create tenant with database
         $tenant = Tenant::create([
@@ -142,7 +142,7 @@ class CommandTest extends TestCase
     }
 
     /** @test */
-    public function testTenantStatusCommandShowsTenantsWithoutDatabases()
+    public function test_tenant_status_command_shows_tenants_without_databases()
     {
         // Create tenant without database
         $tenant = Tenant::create([
@@ -155,5 +155,4 @@ class CommandTest extends TestCase
             ->expectsOutput('Total Tenants: 1')
             ->assertExitCode(0);
     }
-
 }
