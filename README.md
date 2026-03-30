@@ -1,11 +1,10 @@
 # Laravel Multi-Tenancy Package
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/laravel-auto-tenancy)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/worldesports/laravel-auto-tenancy/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/worldesports/laravel-auto-tenancy/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/worldesports/laravel-auto-tenancy/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/worldesports/laravel-auto-tenancy/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/multi-tenancy)
-
-> **Authentication required**: This package works post-authentication. Make sure your Laravel app already has authentication scaffolding (Breeze, Jetstream, Fortify, etc.). The installer will detect missing auth and guide you through installing [Laravel Jetstream](https://jetstream.laravel.com/) with Livewire.
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/run-tests.yml?branch=remote&label=tests&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3Arun-tests+branch%3Aremote)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/fix-php-code-style-issues.yml?branch=remote&label=code%20style&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3A%22Fix+PHP+code+style+issues%22+branch%3Aremote)
+[![PHPStan](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/phpstan.yml?branch=remote&label=phpstan&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3APHPStan+branch%3Aremote)
+[![Total Downloads](https://img.shields.io/packagist/dt/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/laravel-auto-tenancy)
 
 ## Features
 

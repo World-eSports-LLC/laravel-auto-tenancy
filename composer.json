@@ -9,7 +9,7 @@
         "multi-tenant",
         "database-switching"
     ],
-    "version": "^1.0.0",
+    "version": "1.0.0",
     "homepage": "https://github.com/World-eSports-LLC/laravel-auto-tenancy",
     "license": "MIT",
     "authors": [
