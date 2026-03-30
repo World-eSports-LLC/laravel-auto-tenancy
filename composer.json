@@ -47,7 +47,6 @@
     "autoload-dev": {
         "psr-4": {
             "Worldesports\\MultiTenancy\\Tests\\": "tests/",
-            "Workbench\\App\\": "workbench/app/"
         }
     },
     "scripts": {
