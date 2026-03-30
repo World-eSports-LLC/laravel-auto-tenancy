@@ -43,13 +43,27 @@ class AuthScaffoldingDetector
     }
 
     /**
+     * Detect if Fortify Actions are present (used by Jetstream).
+     */
+    public function hasFortifyActions(): bool
+    {
+        return File::exists(app_path('Actions/Fortify'));
+    }
+
+    /**
      * Detect if custom authentication is being used.
+     * This checks for Auth controllers that aren't part of Breeze.
      */
     public function hasCustomAuth(): bool
     {
-        return File::exists(app_path('Http/Controllers/Auth')) &&
-            ! $this->hasBreeze() &&
-            ! $this->hasJetstream();
+        // Check for Auth controllers (not used by Jetstream/Fortify)
+        $hasAuthControllers = File::exists(app_path('Http/Controllers/Auth')) &&
+            ! $this->hasBreeze();
+
+        // Check for Fortify actions (used by Jetstream)
+        $hasFortifyActions = $this->hasFortifyActions();
+
+        return $hasAuthControllers || $hasFortifyActions;
     }
 
     /**
