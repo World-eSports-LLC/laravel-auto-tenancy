@@ -13,6 +13,7 @@ use Worldesports\MultiTenancy\Models\Tenant;
 trait BelongsToTenant
 {
     private const SCOPE_NAME = 'tenant';
+
     public static function bootBelongsToTenant(): void
     {
         static::addGlobalScope('tenant', function (Builder $builder) {
@@ -96,18 +97,17 @@ trait BelongsToTenant
      *
      * Supports all Laravel database drivers: mysql, pgsql, sqlite, sqlsrv
      *
-     * @param string $connectionName Unique identifier for this connection (e.g., 'tenant_5')
-     * @param array $details Database connection details array with keys:
-     *     - driver (required): 'mysql', 'pgsql', 'sqlite', or 'sqlsrv'
-     *     - host: Database host (required except for SQLite)
-     *     - port: Database port (optional, uses driver defaults)
-     *     - database (required): Database name or file path
-     *     - username: Database user (required except for SQLite)
-     *     - password: Database password (required except for SQLite)
-     *     - charset: Character set (optional)
-     *     - collation: Collation (optional for MySQL)
+     * @param  string  $connectionName  Unique identifier for this connection (e.g., 'tenant_5')
+     * @param  array  $details  Database connection details array with keys:
+     *                          - driver (required): 'mysql', 'pgsql', 'sqlite', or 'sqlsrv'
+     *                          - host: Database host (required except for SQLite)
+     *                          - port: Database port (optional, uses driver defaults)
+     *                          - database (required): Database name or file path
+     *                          - username: Database user (required except for SQLite)
+     *                          - password: Database password (required except for SQLite)
+     *                          - charset: Character set (optional)
+     *                          - collation: Collation (optional for MySQL)
      *
-     * @return void
      * @throws InvalidArgumentException If required connection details are missing
      */
     protected function ensureConnectionConfiguration(string $connectionName, array $details): void
