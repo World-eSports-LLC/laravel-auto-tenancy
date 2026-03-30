@@ -19,4 +19,4 @@
 - Zero-configuration installation
 - Security features: access control, connection validation, Host header validation
 
-[1.0.0]: https://github.com/KeithPrinkey-ops/laravel-multi-tenancy/releases/tag/v1.0.0
+[1.0.0]: https://github.com/World-eSports-LLC/laravel-auto-tenancy/releases/tag/v1.0.0

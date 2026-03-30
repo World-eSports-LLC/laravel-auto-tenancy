@@ -49,7 +49,9 @@ class SetTenant
 
             return $next($request);
         } finally {
-            // Always restore the default connection in long-lived workers (Octane/queues)
+            // IMPORTANT: Reset tenant context after request completes to prevent leakage
+            // in long-lived worker processes (Octane, queue workers, etc.).
+            // Each HTTP request gets fresh context.
             MultiTenancy::resetTenant();
         }
     }
