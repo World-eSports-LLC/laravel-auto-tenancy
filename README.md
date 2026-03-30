@@ -31,7 +31,7 @@
 You can install the package via composer:
 
 ```bash
-composer require worldesports/multi-tenancy
+composer require worldesports/laravel-auto-tenancy
 ```
 
 Quick installation with setup:
