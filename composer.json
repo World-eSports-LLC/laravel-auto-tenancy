@@ -46,7 +46,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Worldesports\\MultiTenancy\\Tests\\": "tests/",
+            "Worldesports\\MultiTenancy\\Tests\\": "tests/"
         }
     },
     "scripts": {
