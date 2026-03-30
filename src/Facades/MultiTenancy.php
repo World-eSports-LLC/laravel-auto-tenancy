@@ -3,6 +3,8 @@
 namespace Worldesports\MultiTenancy\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use Worldesports\MultiTenancy\Models\Tenant;
+use Worldesports\MultiTenancy\Models\TenantDatabase;
 
 /**
  * @see \Worldesports\MultiTenancy\MultiTenancy

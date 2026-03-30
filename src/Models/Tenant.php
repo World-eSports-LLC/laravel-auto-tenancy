@@ -69,7 +69,6 @@ class Tenant extends Model
             return $primary;
         }
 
-        /** @var TenantDatabase|null $first */
         return $this->databases->first();
     }
 

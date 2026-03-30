@@ -86,6 +86,8 @@ class AuthScaffoldingDetector
 
     /**
      * Check if all required auth scaffolding is in place.
+     * 
+     * @phpstan-impure
      */
     public function passes(): bool
     {
