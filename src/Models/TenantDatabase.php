@@ -24,7 +24,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class TenantDatabase extends Model
 {
-    protected $guarded = [];
+    protected $table = 'tenant_databases';
+
+    protected $fillable = [
+        'tenant_id',
+        'name',
+        'connection_details',
+        'is_primary',
+    ];
 
     protected $casts = [
         'connection_details' => 'array',
@@ -52,39 +59,14 @@ class TenantDatabase extends Model
     {
         return Attribute::make(
             get: function ($value) {
-                if (config('multi-tenancy.encrypt_connection_details', false) && $value) {
-                    try {
-                        $decoded = json_decode($value, true);
-
-                        if (is_array($decoded) && array_key_exists('encrypted', $decoded)) {
-                            return json_decode(decrypt($decoded['encrypted']), true);
-                        }
-
-                        if (is_array($decoded)) {
-                            return $decoded;
-                        }
-
-                        if (is_string($decoded)) {
-                            return json_decode(decrypt($decoded), true);
-                        }
-
-                        return json_decode(decrypt($value), true);
-                    } catch (\Exception $e) {
-                        // Fallback to unencrypted for backward compatibility
-                        return json_decode($value, true);
-                    }
+                if (! $value) {
+                    return [];
                 }
 
-                return json_decode($value, true);
+                return $this->decodeConnectionDetails($value);
             },
             set: function ($value) {
-                if (config('multi-tenancy.encrypt_connection_details', false)) {
-                    return json_encode([
-                        'encrypted' => encrypt(json_encode($value)),
-                    ]);
-                }
-
-                return json_encode($value);
+                return json_encode($this->encodeConnectionDetails($value));
             }
         );
     }
@@ -195,5 +177,54 @@ class TenantDatabase extends Model
         }
 
         return "sqlsrv:Server={$server};Database={$database}";
+    }
+
+    private function decodeConnectionDetails(string $value): array
+    {
+        $decoded = json_decode($value, true);
+
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        // Support rows written by the previous full-payload encryption behavior.
+        if (array_key_exists('encrypted', $decoded)) {
+            try {
+                $legacyDecoded = json_decode(decrypt($decoded['encrypted']), true);
+
+                return is_array($legacyDecoded) ? $legacyDecoded : [];
+            } catch (\Exception $e) {
+                return [];
+            }
+        }
+
+        if (array_key_exists('password_encrypted', $decoded)) {
+            try {
+                $decoded['password'] = decrypt($decoded['password_encrypted']);
+            } catch (\Exception $e) {
+                $decoded['password'] = $decoded['password_encrypted'];
+            }
+
+            unset($decoded['password_encrypted']);
+        }
+
+        return $decoded;
+    }
+
+    private function encodeConnectionDetails(mixed $value): array
+    {
+        $details = is_array($value) ? $value : [];
+
+        if (! config('multi-tenancy.encrypt_connection_password', true)) {
+            return $details;
+        }
+
+        $password = $details['password'] ?? null;
+        if (is_string($password) && $password !== '') {
+            $details['password_encrypted'] = encrypt($password);
+            unset($details['password']);
+        }
+
+        return $details;
     }
 }

@@ -1,6 +1,6 @@
 {
-    "name": "keithprinkey-ops/laravel-auto-tenancy",
-    "description": "Laravel package for post-authentication multi-tenancy in which the user only needs to install the package and their laravel install becomes multi-tenant",
+    "name": "worldesports/multi-tenancy",
+    "description": "Laravel package for post-authentication multi-tenancy with per-tenant database isolation and automatic connection switching",
     "keywords": [
         "laravel",
         "auto-tenancy",
@@ -9,6 +9,7 @@
         "multi-tenant",
         "database-switching"
     ],
+    "version": "^1.0.0",
     "homepage": "https://github.com/KeithPrinkey-ops/laravel-multi-tenancy",
     "license": "MIT",
     "authors": [
@@ -19,9 +20,11 @@
         }
     ],
     "require": {
-        "php": "^8.4",
-        "illuminate/contracts": "*",
-        "illuminate/database": "*",
+        "php": "^8.2",
+        "illuminate/contracts": "^10.0|^11.0",
+        "illuminate/support": "^10.0|^11.0",
+        "illuminate/database": "^10.0|^11.0",
+        "illuminate/auth": "^10.0|^11.0",
         "spatie/laravel-package-tools": "^1.16",
         "ext-pdo": "*"
     },
@@ -72,6 +75,6 @@
             }
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

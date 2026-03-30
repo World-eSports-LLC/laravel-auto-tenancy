@@ -327,6 +327,7 @@ php artisan tenant:cleanup 1 --drop-database --force
 ```php
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
+use Worldesports\MultiTenancy\Models\TenantDatabase;
 
 // Get current tenant
 $tenant = MultiTenancy::getTenant();
@@ -334,6 +335,13 @@ $tenant = MultiTenancy::getTenant();
 // Manually set a tenant
 $tenant = Tenant::find(1);
 MultiTenancy::setTenant($tenant);
+
+// Manually set a tenant and pick a specific tenant database
+$database = TenantDatabase::find(5);
+MultiTenancy::useDatabase($database); // switches default connection to this DB
+
+// Or pass a database ID when setting the tenant (falls back to primary/first if null)
+MultiTenancy::setTenant($tenant, $databaseId = 5);
 
 // Check if tenant is set
 if (MultiTenancy::hasTenant()) {
@@ -349,6 +357,18 @@ MultiTenancy::resetTenant();
 // Purge all cached connections
 MultiTenancy::purgeConnections();
 ```
+
+### Querying for a specific tenant (and database) without changing global context
+
+```php
+// Scope a model to a tenant (uses its primary DB)
+Invoice::forTenant($tenantId = 10)->get();
+
+// Scope a model to a specific tenant *database* without switching the app default
+Invoice::forTenant($tenantId = 10, $databaseId = 22)->get();
+```
+
+> Note: The package keeps **one active tenant database at a time** per request/context. You can pick which tenant DB to use, but queries execute against a single selected database, not multiple concurrently.
 
 ### Automatic Tenant Detection
 
@@ -423,6 +443,12 @@ Route::middleware(['auth', \Worldesports\MultiTenancy\Middleware\SetTenant::clas
 // With error handling options
 Route::middleware(['auth', \Worldesports\MultiTenancy\Middleware\SetTenant::class . ':error'])
     ->get('/api/data', [ApiController::class, 'index']);
+
+// Require a tenant to be present (403s if missing)
+Route::middleware(['auth', 'tenant', 'tenant.required'])
+    ->group(function () {
+        Route::get('/account', [AccountController::class, 'show']);
+    });
 ```
 
 Middleware options:

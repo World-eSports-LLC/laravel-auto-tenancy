@@ -24,7 +24,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Tenant extends Model
 {
-    protected $guarded = [];
+    protected $table = 'tenants';
+
+    protected $fillable = [
+        'user_id',
+        'name',
+        'domain',
+        'subdomain',
+    ];
 
     protected $casts = [
         'created_at' => 'datetime',
@@ -36,6 +43,12 @@ class Tenant extends Model
         return $this->belongsTo(config('multi-tenancy.user_model', 'App\\Models\\User'));
     }
 
+    /**
+     * Relationship: One user can have many tenants.
+     * This supports a 1:many architecture where a single authenticated user
+     * can own or manage multiple organizations/workspaces.
+     * If you need to restrict to 1 tenant per user, enforce that at the application level.
+     */
     public function databases(): HasMany
     {
         return $this->hasMany(TenantDatabase::class);
@@ -46,16 +59,18 @@ class Tenant extends Model
      */
     public function primaryDatabase(): ?TenantDatabase
     {
+        // Ensure relationship is loaded only once
+        $this->loadMissing('databases');
+
         /** @var TenantDatabase|null $primary */
-        $primary = $this->databases()->where('is_primary', true)->first();
+        $primary = $this->databases->firstWhere('is_primary', true);
+
         if ($primary) {
             return $primary;
         }
 
         /** @var TenantDatabase|null $first */
-        $first = $this->databases()->first();
-
-        return $first;
+        return $this->databases->first();
     }
 
     /**

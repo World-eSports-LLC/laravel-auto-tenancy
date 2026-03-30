@@ -17,6 +17,8 @@ use Worldesports\MultiTenancy\Commands\TenantSeedCommand;
 use Worldesports\MultiTenancy\Listeners\CreateTenantOnRegistration;
 use Worldesports\MultiTenancy\Listeners\SetTenantOnLogin;
 use Worldesports\MultiTenancy\Support\AuthScaffoldingDetector;
+use Worldesports\MultiTenancy\Middleware\SetTenant;
+use Worldesports\MultiTenancy\Middleware\RequireTenant;
 
 class MultiTenancyServiceProvider extends PackageServiceProvider
 {
@@ -56,6 +58,10 @@ class MultiTenancyServiceProvider extends PackageServiceProvider
     public function boot()
     {
         parent::boot();
+
+        // Middleware alias for routes that must enforce tenant context
+        $this->app['router']->aliasMiddleware('tenant.required', RequireTenant::class);
+        $this->app['router']->aliasMiddleware('tenant', SetTenant::class);
 
         $this->warnIfAuthScaffoldingMissing();
 

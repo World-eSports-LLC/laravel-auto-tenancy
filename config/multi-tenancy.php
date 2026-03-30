@@ -83,7 +83,11 @@ return [
     | Security-related configurations.
     |
     */
+    // Deprecated legacy option for full-payload encryption support during reads.
     'encrypt_connection_details' => false,
+
+    // Encrypt only the stored database password while leaving host/user/database readable.
+    'encrypt_connection_password' => true,
 
     'security' => [
         'check_user_tenant_access' => true, // Verify user has access to tenant

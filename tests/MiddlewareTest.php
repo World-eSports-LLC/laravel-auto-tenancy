@@ -41,15 +41,19 @@ class MiddlewareTest extends TestCase
         // Ensure no tenant is set initially
         $this->assertFalse(MultiTenancy::hasTenant());
 
+        $tenantWasSetDuringRequest = false;
+
         // Process request through middleware
         $middleware = new SetTenant;
-        $response = $middleware->handle($request, function ($req) {
+        $response = $middleware->handle($request, function ($req) use (&$tenantWasSetDuringRequest) {
+            $tenantWasSetDuringRequest = MultiTenancy::hasTenant();
             return response('OK');
         });
 
-        // Check that tenant was set
-        $this->assertTrue(MultiTenancy::hasTenant());
-        $this->assertSame($tenant->id, MultiTenancy::getTenant()->id);
+        // Check that tenant was set during the request lifecycle
+        $this->assertTrue($tenantWasSetDuringRequest);
+        // Context is reset in finally, so it should now be cleared
+        $this->assertFalse(MultiTenancy::hasTenant());
         $this->assertSame('OK', $response->getContent());
     }
 

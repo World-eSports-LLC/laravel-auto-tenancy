@@ -11,7 +11,7 @@ use Worldesports\MultiTenancy\Models\TenantDatabase;
 class CreateTenantCommand extends Command
 {
     public $signature = 'tenant:create
-                        {user_id : The user ID to associate with the tenant}
+                        {user_id : The ID of the user to associate with the tenant}
                         {name : The tenant name}
                         {--domain= : Domain for automatic email-based detection (e.g., company.com)}
                         {--subdomain= : Subdomain for automatic URL-based detection (e.g., client1)}
@@ -22,24 +22,30 @@ class CreateTenantCommand extends Command
                         {--db-password= : Database password (not required for SQLite)}
                         {--db-driver=mysql : Database driver (mysql, pgsql, sqlite, sqlsrv)}
                         {--primary : Mark the database as primary for this tenant}
-                        {--create-db : Create the database if it doesn\'t exist}';
+                        {--create-db : Create the database if it doesn\'t exist}
+                        {--root-username= : Root/admin username for database creation (required if --create-db is used for non-SQLite)}
+                        {--root-password= : Root/admin password for database creation (required if --create-db is used for non-SQLite)}
+                        {--force : Skip the creation confirmation prompt}';
 
     public $description = 'Create a new tenant with database connection';
 
     public function handle(): int
     {
-        $userId = $this->argument('user_id');
+        $userInput = (int) $this->argument('user_id');
         $tenantName = $this->argument('name');
 
-        // Validate user exists
+        // Resolve user by primary key
         $userModel = config('multi-tenancy.user_model');
-        if (! $userModel::find($userId)) {
-            $this->error("User with ID {$userId} not found.");
+        $user = $userModel::find($userInput);
 
+        if (! $user) {
+            $this->error("User with ID {$userInput} not found.");
             return self::FAILURE;
         }
 
-        // Check if tenant already exists for user
+        $userId = $user->getKey();
+
+        // Check if tenant already exists for this user
         if (Tenant::where('user_id', $userId)->exists()) {
             $this->error("Tenant already exists for user ID {$userId}.");
 
@@ -126,15 +132,42 @@ class CreateTenantCommand extends Command
             'password' => $dbPassword,
         ];
 
+        if (! $this->confirmTenantCreation($tenantName, (string) $userId, $connectionDetails)) {
+            if ($this->input->isInteractive()) {
+                $this->info('Operation cancelled.');
+
+                return self::SUCCESS;
+            }
+
+            return self::FAILURE;
+        }
+
         if (! $this->validateDatabaseConnection($connectionDetails)) {
             return self::FAILURE;
         }
 
         try {
-            // Create database if requested (skip for SQLite)
-            if ($this->option('create-db') && $dbDriver !== 'sqlite') {
-                $this->info('Creating database...');
-                $this->createDatabase($dbHost, $dbPort ?? 3306, $dbUsername, $dbPassword, $dbName, $dbDriver);
+            // Create database if requested
+            if ($this->option('create-db')) {
+                if ($dbDriver === 'sqlite') {
+                    $this->info('SQLite database will auto-create on first connection.');
+                } else {
+                    // Validate root credentials provided
+                    $rootUsername = $this->option('root-username');
+                    $rootPassword = $this->option('root-password');
+
+                    if (! $rootUsername || ! $rootPassword) {
+                        $this->error('Root/admin username and password are required to create the database.');
+                        $this->line('Use: --root-username=root --root-password=secret');
+
+                        return self::FAILURE;
+                    }
+
+                    $this->info('Creating database with root credentials...');
+                    if (! $this->createDatabase($dbDriver, $dbHost, $dbPort, $rootUsername, $rootPassword, $dbName)) {
+                        $this->warn('⚠️  Database creation failed or database already exists. Continuing...');
+                    }
+                }
             }
 
             // Test connection
@@ -204,28 +237,6 @@ class CreateTenantCommand extends Command
         }
     }
 
-    private function createDatabase(string $host, int $port, string $username, string $password, string $database, string $driver): void
-    {
-        $config = [
-            'driver' => $driver,
-            'host' => $host,
-            'port' => $port,
-            'username' => $username,
-            'password' => $password,
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-        ];
-
-        $connection = DB::connection()->getPdo()->getAttribute(\PDO::ATTR_DRIVER_NAME) === $driver
-            ? DB::connection()
-            : DB::connection()->setPdo(new \PDO(
-                "{$driver}:host={$host};port={$port}",
-                $username,
-                $password
-            ));
-
-        $connection->statement("CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    }
 
     private function testConnection(string $host, ?int $port, ?string $username, ?string $password, string $database, string $driver): void
     {
@@ -244,6 +255,10 @@ class CreateTenantCommand extends Command
 
     /**
      * Validate database connection
+     *
+     * Note: For MySQL/PostgreSQL/SQL Server, the database must be manually created
+     * before running this command. This command does not have root/admin credentials.
+     * SQLite databases are auto-created on first connection.
      *
      * @used
      */
@@ -300,5 +315,142 @@ class CreateTenantCommand extends Command
         }
 
         return true;
+    }
+
+    private function confirmTenantCreation(string $tenantName, string $userId, array $connectionDetails): bool
+    {
+        $this->warn("You are about to create tenant '{$tenantName}' for user ID {$userId}.");
+        $this->line('The connection details are as follows:');
+        $this->table(
+            ['Setting', 'Value'],
+            $this->buildConfirmationRows($connectionDetails)
+        );
+
+        if ($this->option('force')) {
+            return true;
+        }
+
+        if (! $this->input->isInteractive()) {
+            $this->error('Tenant creation requires confirmation in non-interactive mode. Re-run the command with --force to skip the prompt.');
+
+            return false;
+        }
+
+        return $this->confirm('Are you sure you want to make this tenant?', false);
+    }
+
+    private function buildConfirmationRows(array $connectionDetails): array
+    {
+        $rows = [
+            ['Driver', $connectionDetails['driver'] ?? 'N/A'],
+            ['Database', $connectionDetails['database'] ?? 'N/A'],
+        ];
+
+        if (($connectionDetails['driver'] ?? null) !== 'sqlite') {
+            $rows[] = ['Host', $connectionDetails['host'] ?? 'N/A'];
+            $rows[] = ['Port', (string) ($connectionDetails['port'] ?? 'N/A')];
+            $rows[] = ['Username', $connectionDetails['username'] ?? 'N/A'];
+            $rows[] = ['Password', empty($connectionDetails['password']) ? '[not provided]' : '[hidden]'];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Create a database using root/admin credentials
+     * Supports MySQL, PostgreSQL, and SQL Server
+     */
+    private function createDatabase(string $driver, string $host, ?int $port, string $rootUsername, string $rootPassword, string $dbName): bool
+    {
+        try {
+            switch ($driver) {
+                case 'mysql':
+                    return $this->createMysqlDatabase($host, $port ?? 3306, $rootUsername, $rootPassword, $dbName);
+
+                case 'pgsql':
+                    return $this->createPostgresqlDatabase($host, $port ?? 5432, $rootUsername, $rootPassword, $dbName);
+
+                case 'sqlsrv':
+                    return $this->createSqlServerDatabase($host, $port ?? 1433, $rootUsername, $rootPassword, $dbName);
+
+                default:
+                    $this->error("Database creation not supported for driver: {$driver}");
+                    return false;
+            }
+        } catch (\Exception $e) {
+            $this->error("Database creation error: {$e->getMessage()}");
+            return false;
+        }
+    }
+
+    private function createMysqlDatabase(string $host, int $port, string $username, string $password, string $dbName): bool
+    {
+        try {
+            $dsn = "mysql:host={$host};port={$port}";
+            $pdo = new \PDO($dsn, $username, $password);
+            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+            $sql = "CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+            $pdo->exec($sql);
+
+            $this->info("✅ MySQL database '{$dbName}' created successfully");
+            return true;
+        } catch (\PDOException $e) {
+            if (strpos($e->getMessage(), 'already exists') !== false) {
+                $this->info("ℹ️  Database '{$dbName}' already exists");
+                return true;
+            }
+            throw $e;
+        }
+    }
+
+    private function createPostgresqlDatabase(string $host, int $port, string $username, string $password, string $dbName): bool
+    {
+        try {
+            $dsn = "pgsql:host={$host};port={$port};dbname=postgres";
+            $pdo = new \PDO($dsn, $username, $password);
+            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+            // Check if database exists
+            $result = $pdo->query("SELECT 1 FROM pg_database WHERE datname = '{$dbName}'");
+            if ($result->rowCount() > 0) {
+                $this->info("ℹ️  Database '{$dbName}' already exists");
+                return true;
+            }
+
+            // Create database
+            $sql = "CREATE DATABASE \"{$dbName}\" ENCODING 'UTF8'";
+            $pdo->exec($sql);
+
+            $this->info("✅ PostgreSQL database '{$dbName}' created successfully");
+            return true;
+        } catch (\PDOException $e) {
+            throw $e;
+        }
+    }
+
+    private function createSqlServerDatabase(string $host, int $port, string $username, string $password, string $dbName): bool
+    {
+        try {
+            $dsn = "sqlsrv:Server={$host},{$port};Database=master";
+            $pdo = new \PDO($dsn, $username, $password);
+            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+            // Check if database exists
+            $result = $pdo->query("SELECT 1 FROM sys.databases WHERE name = '{$dbName}'");
+            if ($result->rowCount() > 0) {
+                $this->info("ℹ️  Database '{$dbName}' already exists");
+                return true;
+            }
+
+            // Create database
+            $sql = "CREATE DATABASE [{$dbName}]";
+            $pdo->exec($sql);
+
+            $this->info("✅ SQL Server database '{$dbName}' created successfully");
+            return true;
+        } catch (\PDOException $e) {
+            throw $e;
+        }
     }
 }

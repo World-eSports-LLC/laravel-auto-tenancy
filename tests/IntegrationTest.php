@@ -5,13 +5,14 @@ namespace Worldesports\MultiTenancy\Tests;
 use Illuminate\Auth\Events\Login;
 use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
 use Worldesports\MultiTenancy\Tests\TestUser;
 
-class IntegrationTest extends TestCase
+class iIntegrationTest extends TestCase
 {
     use UsesTestMigrations;
 
@@ -147,6 +148,10 @@ class IntegrationTest extends TestCase
         $this->assertSame('test_tenant_db', $metadata[0]['name']);
         $this->assertSame('1.0.0', $metadata[0]['metadata']['version']);
         $this->assertSame('sqlite', $metadata[0]['connection_info']['driver']);
+        $this->assertSame(':memory:', $metadata[0]['connection_info']['database']);
+        $this->assertArrayNotHasKey('host', $metadata[0]['connection_info']);
+        $this->assertArrayNotHasKey('port', $metadata[0]['connection_info']);
+        $this->assertArrayNotHasKey('username', $metadata[0]['connection_info']);
     }
 
     /** @test */
@@ -163,6 +168,40 @@ class IntegrationTest extends TestCase
         $this->assertTrue(MultiTenancy::hasTenant());
         $this->assertSame($tenant->id, MultiTenancy::getTenant()->id);
         $this->assertNull(MultiTenancy::getCurrentConnectionName());
+    }
+
+    /** @test */
+    public function test_it_encrypts_only_the_stored_connection_password()
+    {
+        $tenant = Tenant::create([
+            'user_id' => $this->user->id,
+            'name' => 'Password Test Company',
+        ]);
+
+        $tenantDatabase = TenantDatabase::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'password_test_db',
+            'connection_details' => [
+                'driver' => 'mysql',
+                'host' => '127.0.0.1',
+                'port' => 3306,
+                'database' => 'tenant_password_test',
+                'username' => 'tenant_user',
+                'password' => 'super-secret-password',
+            ],
+        ]);
+
+        $storedDetails = json_decode(
+            DB::table('tenant_databases')->where('id', $tenantDatabase->id)->value('connection_details'),
+            true
+        );
+
+        $this->assertSame('tenant_user', $storedDetails['username']);
+        $this->assertArrayNotHasKey('password', $storedDetails);
+        $this->assertArrayHasKey('password_encrypted', $storedDetails);
+        $this->assertNotSame('super-secret-password', $storedDetails['password_encrypted']);
+
+        $this->assertSame('super-secret-password', $tenantDatabase->fresh()->connection_details['password']);
     }
 
     /** @test */

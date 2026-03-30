@@ -13,14 +13,11 @@ class MultiTenancy
     protected ?Tenant $tenant = null;
 
     protected ?int $tenantId = null;
-
+    protected ?int $tenantDatabaseId = null;
     protected ?string $currentConnectionName = null;
-
     protected static array $connectionCache = [];
-
     protected ?string $originalConnection = null;
-
-    public function setTenant(Tenant $tenant): void
+    public function setTenant(Tenant $tenant, ?int $databaseId = null): void
     {
         // Store original connection if not already stored
         if (! $this->originalConnection) {
@@ -29,11 +26,26 @@ class MultiTenancy
 
         $this->tenant = $tenant;
         $this->tenantId = $tenant->id;
+        $this->tenantDatabaseId = null;
 
-        $defaultDatabase = $tenant->primaryDatabase();
-        if ($defaultDatabase) {
-            $this->setTenantDatabaseConnection($defaultDatabase);
-            $this->switchToTenantConnection();
+        // Choose database: explicit ID > primary flag > single database fallback
+        $database = null;
+        $tenant->loadMissing('databases');
+
+        if ($databaseId !== null) {
+            $database = $tenant->databases->firstWhere('id', $databaseId);
+        }
+
+        if (! $database) {
+            $database = $tenant->primaryDatabase();
+        }
+
+        if (! $database && $tenant->databases->count() === 1) {
+            $database = $tenant->databases->first();
+        }
+
+        if ($database) {
+            $this->useDatabase($database);
         }
     }
 
@@ -50,6 +62,40 @@ class MultiTenancy
     public function getCurrentConnectionName(): ?string
     {
         return $this->currentConnectionName;
+    }
+
+    public function getCurrentDatabaseId(): ?int
+    {
+        return $this->tenantDatabaseId;
+    }
+
+    /**
+     * Explicitly choose a tenant database and (optionally) switch the default connection.
+     */
+    public function useDatabase(TenantDatabase $tenantDatabase, bool $switchDefault = true): string
+    {
+        $connectionName = $this->setTenantDatabaseConnection($tenantDatabase);
+        $this->tenantDatabaseId = $tenantDatabase->id;
+
+        if ($switchDefault) {
+            $this->switchToTenantConnection();
+        }
+
+        return $connectionName;
+    }
+
+    /**
+     * Choose a tenant database by ID without changing the tenant context.
+     */
+    public function useDatabaseId(int $databaseId, bool $switchDefault = true): string
+    {
+        $database = TenantDatabase::find($databaseId);
+
+        if (! $database) {
+            throw new InvalidArgumentException("Tenant database with ID {$databaseId} not found.");
+        }
+
+        return $this->useDatabase($database, $switchDefault);
     }
 
     public function setTenantDatabaseConnection(TenantDatabase $tenantDatabase): string
@@ -141,11 +187,19 @@ class MultiTenancy
         return $connectionName;
     }
 
+    /**
+     * Get the connection name for a tenant database without mutating state.
+     * This is safe to use in query scopes and other places where side effects should be avoided.
+     */
+    public function getConnectionNameForDatabase(TenantDatabase $tenantDatabase): string
+    {
+        return 'tenant_connection_'.$tenantDatabase->id;
+    }
+
     public function switchToTenantConnection(): void
     {
         if ($this->currentConnectionName) {
             Config::set('database.default', $this->currentConnectionName);
-            DB::reconnect($this->currentConnectionName);
         }
     }
 
@@ -153,7 +207,6 @@ class MultiTenancy
     {
         $mainConnection = $this->originalConnection ?? config('multi-tenancy.main_connection', 'mysql');
         Config::set('database.default', $mainConnection);
-        DB::reconnect($mainConnection);
         $this->currentConnectionName = null;
     }
 
@@ -194,7 +247,7 @@ class MultiTenancy
             return [
                 'id' => $database->id,
                 'name' => $database->name,
-                'connection_details' => $database->connection_details,
+                'safe_connection_details' => $database->safe_connection_details,
                 'metadata' => $database->metadata->pluck('value', 'key')->toArray(),
             ];
         })
@@ -219,27 +272,26 @@ class MultiTenancy
             return [];
         }
 
-        $metaData = [];
-        foreach ($this->tenant->databases as $database) {
-            $connectionDetails = $database->connection_details;
-            $metadata = $database->metadata->pluck('value', 'key')->toArray();
+        $this->tenant->loadMissing('databases.metadata');
 
-            $metaData[] = [
+        $databases = [];
+
+        foreach ($this->tenant->databases as $database) {
+            $safeDetails = array_filter(
+                $database->safe_connection_details,
+                fn ($value) => $value !== null
+            );
+
+            $databases[] = [
                 'id' => $database->id,
                 'name' => $database->name,
-                'connection_info' => [
-                    'driver' => $connectionDetails['driver'] ?? null,
-                    'host' => $connectionDetails['host'] ?? null,
-                    'port' => $connectionDetails['port'] ?? null,
-                    'database' => $connectionDetails['database'] ?? null,
-                    'username' => $connectionDetails['username'] ?? null,
-                ],
-                'metadata' => $metadata,
+                'connection_info' => $safeDetails,
+                'metadata' => $database->metadata->pluck('value', 'key')->toArray(),
                 'created_at' => $database->created_at,
             ];
         }
 
-        return $metaData;
+        return $databases;
     }
 
     public function echoPhrase(string $phrase): string

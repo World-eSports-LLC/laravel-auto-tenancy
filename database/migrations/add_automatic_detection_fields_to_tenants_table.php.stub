@@ -17,7 +17,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->dropIndex(['domain']);
+            // Drop constraints before dropping the columns to avoid DB errors
+            $table->dropUnique('tenants_subdomain_unique');
+            $table->dropIndex('tenants_domain_index');
             $table->dropColumn(['domain', 'subdomain']);
         });
     }

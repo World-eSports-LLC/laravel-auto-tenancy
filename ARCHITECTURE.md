@@ -96,22 +96,29 @@ $tenant = Tenant::where('user_id', $user->id)->first();
 // Finds: Tenant with id=1, name='League A'
 ```
 
-### Step 3: Find Tenant's Database
+### Step 3: Choose Tenant Database
 ```php
-// Tenant::primaryDatabase() looks for is_primary=true
-$database = $tenant->primaryDatabase(); // Gets TenantDatabase
-// Contains: mysql connection to 'league_a_production' database
+// Primary pick order:
+// 1) Explicit database ID passed to setTenant($tenant, $databaseId)
+// 2) Tenant::primaryDatabase() (is_primary = true)
+// 3) Single database fallback (if only one exists)
+$database = $tenant->primaryDatabase(); // or the explicit one you passed
 ```
 
-### Step 4: Switch Connection
+### Step 4: Switch Connection (or opt out)
 ```php
-// MultiTenancy.php → setTenant($tenant)
-MultiTenancy::setTenant($tenant);
+// MultiTenancy.php → setTenant($tenant, $databaseId = null)
+MultiTenancy::setTenant($tenant);           // uses primary/first DB
+MultiTenancy::setTenant($tenant, 5);        // use specific tenant DB ID
 
-// 1. Reads $database->connection_details (mysql credentials)
-// 2. Creates a Laravel config entry: database.connections.tenant_connection_1
-// 3. Sets config('database.default') to 'tenant_connection_1'
-// 4. All queries now use League A's database
+// Under the hood:
+// 1. Builds config database.connections.tenant_connection_{db_id}
+// 2. Switches config('database.default') to that tenant connection
+// 3. Tracks the active tenant database ID
+//
+// Alternative (no global switch) for scoped queries only:
+// MultiTenancy::useDatabase($database, switchDefault: false);
+// (single active DB per request; you choose which one)
 ```
 
 ### Step 5: All Queries Use Tenant Database
@@ -176,22 +183,31 @@ $tenant = Tenant::find($user->tenant_id);
    $tenant = Tenant::where('user_id', $user->getKey())->first();
    ```
 
-2. **Secondary Strategy** (Optional): Auto-create tenant if none exists
-   ```php
-   if (!$tenant && config('multi-tenancy.auto_create_tenant')) {
-       $tenant = createTenantForUser($user);
-   }
-   ```
+2. **Secondary Strategies (config gated)**:
+   - Email domain detection
+   - Subdomain detection (with base-domain validation)
+   - Auto-create tenant (and optional default database) if none exists
 
-### What It Does NOT Do
+3. **Tenant DB choice**: Uses `setTenant($tenant, $databaseId = null)` which follows the priority described above.
 
-❌ Email domain detection (`keith@company.com` → Company tenant)
-❌ Subdomain detection (`tenant1.app.com` → tenant1)
+### Route Protection / Request Lifecycle
 
-These were removed because:
-- **Email domains are insecure** - any user with a `company.com` email could access tenant data
-- **Subdomains contradict post-auth philosophy** - subdomain-based tenancy doesn't require authentication first
-- **Your SaaS uses admin assignment** - not automatic detection
+- `SetTenant` middleware resolves and sets the tenant (and DB).
+- `tenant.required` middleware 403s if a tenant is not set after resolution.
+- `SetTenant` resets the connection in a `finally` block to avoid tenant bleed in Octane/queues.
+
+### Explicit Per-Database Queries Without Global Switch
+
+```php
+// Use a specific tenant DB but keep app default unchanged
+$db = TenantDatabase::find(5);
+MultiTenancy::useDatabase($db, switchDefault: false);
+
+// Model scope (does not mutate global default)
+Invoice::forTenant($tenantId = 10, $databaseId = 5)->get();
+```
+
+> Design note: At any point in a request, only one tenant database connection is active. The package is not yet intended for concurrent cross-database querying; instead you explicitly pick which tenant DB to use for a given operation.
 
 ---
 
@@ -302,5 +318,3 @@ The listener dynamically loads and uses whatever User model you specify.
 | **Database Switching** | At login, Laravel's `database.default` changes to tenant's connection |
 | **Post-Auth** | Database is switched AFTER user authenticates (not before, not by subdomain) |
 | **Your Responsibility** | Assign users to tenants, create tenant databases, handle N:M users-per-tenant |
-
-

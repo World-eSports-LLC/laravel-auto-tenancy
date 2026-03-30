@@ -11,38 +11,45 @@ class SetTenant
 {
     public function handle(Request $request, Closure $next, ?string $action = 'redirect')
     {
-        if ($user = $request->user()) {
-            /** @var \Illuminate\Database\Eloquent\Model $user */
-            if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
-                $response = $this->handleError($request, $action, 'Invalid user model');
-                if ($response) {
-                    return $response;
-                }
-            }
-
-            $tenant = Tenant::where('user_id', $user->getKey())->first();
-
-            if ($tenant) {
-                try {
-                    MultiTenancy::setTenant($tenant);
-                } catch (\Exception $e) {
-                    $response = $this->handleError($request, $action, 'Failed to set tenant: '.$e->getMessage());
+        try {
+            if ($user = $request->user()) {
+                /** @var \Illuminate\Database\Eloquent\Model $user */
+                if (! ($user instanceof \Illuminate\Database\Eloquent\Model)) {
+                    $response = $this->handleError($request, $action, 'Invalid user model');
                     if ($response) {
                         return $response;
                     }
                 }
-            } else {
-                // No tenant found for user
-                return $this->handleNoTenant($request, $action);
-            }
-        } else {
-            // No authenticated user
-            if ($action === 'error') {
-                return response()->json(['error' => 'Authentication required'], 401);
-            }
-        }
 
-        return $next($request);
+                $tenant = Tenant::where('user_id', $user->getKey())
+                    ->orderByRaw('(SELECT COUNT(*) FROM tenant_databases WHERE tenant_id = tenants.id AND is_primary = true) DESC')
+                    ->first();
+
+                if ($tenant) {
+                    try {
+                        MultiTenancy::setTenant($tenant);
+                    } catch (\Exception $e) {
+                        $response = $this->handleError($request, $action, 'Failed to set tenant: '.$e->getMessage());
+                        if ($response) {
+                            return $response;
+                        }
+                    }
+                } else {
+                    // No tenant found for user
+                    return $this->handleNoTenant($request, $action);
+                }
+            } else {
+                // No authenticated user
+                if ($action === 'error') {
+                    return response()->json(['error' => 'Authentication required'], 401);
+                }
+            }
+
+            return $next($request);
+        } finally {
+            // Always restore the default connection in long-lived workers (Octane/queues)
+            MultiTenancy::resetTenant();
+        }
     }
 
     private function handleNoTenant(Request $request, string $action)

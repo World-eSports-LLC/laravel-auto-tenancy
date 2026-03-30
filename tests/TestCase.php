@@ -51,6 +51,9 @@ class TestCase extends Orchestra
             'prefix' => '',
         ]);
 
+        // Encryption key required for password encryption tests
+        config()->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
+
         // Set up User model for testing - use a simple test implementation
         config()->set('multi-tenancy.user_model', TestUser::class);
         config()->set('multi-tenancy.main_connection', 'testing');

@@ -3,6 +3,9 @@
 namespace Worldesports\MultiTenancy\Tests;
 
 use Worldesports\MultiTenancy\MultiTenancy;
+use Worldesports\MultiTenancy\Models\Tenant;
+use Worldesports\MultiTenancy\Models\TenantDatabase;
+use Worldesports\MultiTenancy\Models\TenantDatabaseMetadata;
 
 class MultiTenancyTest extends TestCase
 {
@@ -48,5 +51,12 @@ class MultiTenancyTest extends TestCase
         $multiTenancy = new MultiTenancy;
         $multiTenancy->resetTenant();
         $this->assertFalse($multiTenancy->hasTenant());
+    }
+
+    public function test_models_use_explicit_fillable_attributes(): void
+    {
+        $this->assertSame(['user_id', 'name', 'domain', 'subdomain'], (new Tenant)->getFillable());
+        $this->assertSame(['tenant_id', 'name', 'connection_details', 'is_primary'], (new TenantDatabase)->getFillable());
+        $this->assertSame(['tenant_database_id', 'key', 'value'], (new TenantDatabaseMetadata)->getFillable());
     }
 }

@@ -4,6 +4,9 @@ namespace Worldesports\MultiTenancy\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 
 trait BelongsToTenant
@@ -43,15 +46,26 @@ trait BelongsToTenant
         return parent::getConnectionName();
     }
 
-    public function scopeForTenant(Builder $query, ?int $tenantId = null): Builder
+    public function scopeForTenant(Builder $query, ?int $tenantId = null, ?int $databaseId = null): Builder
     {
         if ($tenantId) {
-            // Switch to specific tenant connection temporarily
+            // Query with a specific tenant's connection without changing global context
             $tenant = \Worldesports\MultiTenancy\Models\Tenant::find($tenantId);
             if ($tenant) {
-                $database = $tenant->databases()->first();
+                $database = $tenant->databases()
+                    ->when($databaseId, fn ($q) => $q->whereKey($databaseId))
+                    ->first();
                 if ($database) {
-                    $connectionName = MultiTenancy::setTenantDatabaseConnection($database);
+                    $connectionName = MultiTenancy::getConnectionNameForDatabase($database);
+
+                    // Ensure the connection configuration exists without altering global defaults
+                    if (! Config::has("database.connections.$connectionName")) {
+                        $this->ensureConnectionConfiguration($connectionName, $database->connection_details);
+                    }
+
+                    // Track the database context without switching globals
+                    MultiTenancy::useDatabase($database, switchDefault: false);
+
                     $query->getModel()->setConnection($connectionName);
 
                     return $query->getModel()->newQuery();
@@ -70,6 +84,102 @@ trait BelongsToTenant
 
         return $query;
     }
+
+    /**
+     * Register a tenant database connection on the fly without mutating the active default.
+     */
+    protected function ensureConnectionConfiguration(string $connectionName, array $details): void
+    {
+        if (! isset($details['driver'])) {
+            throw new InvalidArgumentException('Database driver is required.');
+        }
+
+        $config = ['driver' => $details['driver']];
+
+        switch ($details['driver']) {
+            case 'sqlite':
+                $config['database'] = $details['database'] ?? null;
+                if (! $config['database']) {
+                    throw new InvalidArgumentException('SQLite connection requires a database (path).');
+                }
+                break;
+
+            case 'pgsql':
+                $config = array_merge($config, [
+                    'host' => $details['host'] ?? '127.0.0.1',
+                    'port' => $details['port'] ?? '5432',
+                    'database' => $details['database'] ?? null,
+                    'username' => $details['username'] ?? null,
+                    'password' => $details['password'] ?? null,
+                    'charset' => $details['charset'] ?? 'utf8',
+                    'prefix' => $details['prefix'] ?? '',
+                    'schema' => $details['schema'] ?? 'public',
+                    'sslmode' => $details['sslmode'] ?? 'prefer',
+                ]);
+                break;
+
+            case 'sqlsrv':
+                $config = array_merge($config, [
+                    'host' => $details['host'] ?? '127.0.0.1',
+                    'port' => $details['port'] ?? '1433',
+                    'database' => $details['database'] ?? null,
+                    'username' => $details['username'] ?? null,
+                    'password' => $details['password'] ?? null,
+                    'charset' => $details['charset'] ?? 'utf8',
+                    'prefix' => $details['prefix'] ?? '',
+                ]);
+                break;
+
+            case 'mysql':
+            default:
+                $config = array_merge($config, [
+                    'host' => $details['host'] ?? '127.0.0.1',
+                    'port' => $details['port'] ?? '3306',
+                    'database' => $details['database'] ?? null,
+                    'username' => $details['username'] ?? null,
+                    'password' => $details['password'] ?? null,
+                    'charset' => $details['charset'] ?? 'utf8mb4',
+                    'collation' => $details['collation'] ?? 'utf8mb4_unicode_ci',
+                    'prefix' => $details['prefix'] ?? '',
+                    'strict' => $details['strict'] ?? true,
+                    'engine' => $details['engine'] ?? null,
+                ]);
+                break;
+        }
+
+        if (empty($config['database'])) {
+            throw new InvalidArgumentException('Database name is required.');
+        }
+
+        Config::set("database.connections.$connectionName", $config);
+
+        // Purge any stale connection definition without switching the default connection
+        try {
+            DB::purge($connectionName);
+        } catch (\Exception $e) {
+            // ignore
+        }
+    }
+
+    /**
+     * Dedicated method for switching the application's tenant context.
+     * Use this when you actually want to change the global tenant, not just query it.
+     */
+    public function switchTenantContext(?int $tenantId): void
+    {
+        if ($tenantId === null) {
+            MultiTenancy::resetTenant();
+            return;
+        }
+
+        $tenant = \Worldesports\MultiTenancy\Models\Tenant::find($tenantId);
+        if (! $tenant) {
+            throw new \InvalidArgumentException("Tenant with ID {$tenantId} not found.");
+        }
+
+        MultiTenancy::setTenant($tenant);
+    }
+
 
     /**
      * Bypass tenant scoping for administrative queries

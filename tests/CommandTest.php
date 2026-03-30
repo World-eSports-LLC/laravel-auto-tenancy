@@ -28,7 +28,9 @@ class CommandTest extends TestCase
             'name' => 'Test Company',
             '--db-name' => 'test_tenant_db',
             '--db-driver' => 'sqlite',
+            '--force' => true,
         ])
+            ->expectsOutputToContain('The connection details are as follows:')
             ->expectsOutput('✅ Tenant \'Test Company\' created successfully!')
             ->assertExitCode(0);
 
@@ -54,6 +56,7 @@ class CommandTest extends TestCase
             '--db-name' => 'test_tenant_db',
             '--db-username' => 'test_user',
             '--db-password' => 'test_pass',
+            '--force' => true,
         ])
             ->expectsOutput('User with ID 999 not found.')
             ->assertExitCode(1);
@@ -77,6 +80,7 @@ class CommandTest extends TestCase
             '--db-name' => 'test_tenant_db',
             '--db-username' => 'test_user',
             '--db-password' => 'test_pass',
+            '--force' => true,
         ])
             ->expectsOutput('Tenant already exists for user ID 1.')
             ->assertExitCode(1);
@@ -92,6 +96,7 @@ class CommandTest extends TestCase
             'user_id' => 1,
             'name' => 'Test Company',
             '--db-name' => 'test_tenant_db',
+            '--force' => true,
             // Missing username and password
         ])
             ->expectsOutput('Database username and password are required for mysql driver.')
