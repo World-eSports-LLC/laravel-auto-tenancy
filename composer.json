@@ -1,78 +1,78 @@
 {
-    "name": "worldesports/laravel-auto-tenancy",
-    "description": "Laravel package for post-authentication multi-tenancy with per-tenant database isolation and automatic connection switching",
-    "keywords": [
-        "laravel",
-        "auto-tenancy",
-        "post-authentication",
-        "zero-config",
-        "multi-tenant",
-        "database-switching"
-    ],
-    "homepage": "https://github.com/World-eSports-LLC/laravel-auto-tenancy",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Keith Prinkey",
-            "email": "chieftech@worldesports.app",
-            "role": "Developer"
-        }
-    ],
-    "require": {
-        "php": "^8.2|^8.3|^8.4",
-        "illuminate/contracts": "^10.0|^11.0|^12.0",
-        "illuminate/support": "^10.0|^11.0|^12.0",
-        "illuminate/database": "^10.0|^11.0|^12.0",
-        "illuminate/auth": "^10.0|^11.0|^12.0",
-        "spatie/laravel-package-tools": "^1.16",
-        "ext-pdo": "*"
-    },
-    "require-dev": {
-        "laravel/pint": "^1.14",
-        "nunomaduro/collision": "^7.10|^8.8",
-        "larastan/larastan": "^3.0",
-        "orchestra/testbench": "^10.0||^9.0||^8.0",
-        "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0",
-        "phpstan/extension-installer": "^1.4",
-        "phpstan/phpstan-deprecation-rules": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0",
-        "spatie/laravel-ray": "^1.35"
-    },
-    "autoload": {
-        "psr-4": {
-            "Worldesports\\MultiTenancy\\": "src/",
-            "Worldesports\\MultiTenancy\\Database\\Factories\\": "database/factories/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Worldesports\\MultiTenancy\\Tests\\": "tests/"
-        }
-    },
-    "scripts": {
-        "post-autoload-dump": "@composer run prepare",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "analyse": "vendor/bin/phpstan analyse",
-        "test": "vendor/bin/phpunit",
-        "test-coverage": "vendor/bin/phpunit --coverage",
-        "format": "vendor/bin/pint"
-    },
-    "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "phpstan/extension-installer": true
-        }
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "Worldesports\\MultiTenancy\\MultiTenancyServiceProvider"
-            ],
-            "aliases": {
-                "MultiTenancy": "Worldesports\\MultiTenancy\\Facades\\MultiTenancy"
+                "name": "worldesports/laravel-auto-tenancy",
+                "description": "Laravel package for post-authentication multi-tenancy with per-tenant database isolation and automatic connection switching",
+                "keywords": [
+                    "laravel",
+                    "auto-tenancy",
+                    "post-authentication",
+                    "zero-config",
+                    "multi-tenant",
+                    "database-switching"
+                ],
+                "homepage": "https://github.com/World-eSports-LLC/laravel-auto-tenancy",
+                "license": "MIT",
+                "authors": [
+                    {
+                        "name": "Keith Prinkey",
+                        "email": "chieftech@worldesports.app",
+                        "role": "Developer"
+                    }
+                ],
+                "require": {
+                    "php": "^8.3|^8.4",
+                    "illuminate/contracts": "^11.0|^12.0",
+                    "illuminate/support": "^11.0|^12.0",
+                    "illuminate/database": "^11.0|^12.0",
+                    "illuminate/auth": "^11.0|^12.0",
+                    "spatie/laravel-package-tools": "^1.16",
+                    "ext-pdo": "*"
+                },
+                "require-dev": {
+                    "laravel/pint": "^1.14",
+                    "nunomaduro/collision": "^8.8",
+                    "larastan/larastan": "^3.0",
+                    "orchestra/testbench": "^10.0||^9.0",
+                    "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0",
+                    "phpstan/extension-installer": "^1.4",
+                    "phpstan/phpstan-deprecation-rules": "^2.0",
+                    "phpstan/phpstan-phpunit": "^2.0",
+                    "spatie/laravel-ray": "^1.35"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "Worldesports\\MultiTenancy\\": "src/",
+                        "Worldesports\\MultiTenancy\\Database\\Factories\\": "database/factories/"
+                    }
+                },
+                "autoload-dev": {
+                    "psr-4": {
+                        "Worldesports\\MultiTenancy\\Tests\\": "tests/"
+                    }
+                },
+                "scripts": {
+                    "post-autoload-dump": "@composer run prepare",
+                    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+                    "analyse": "vendor/bin/phpstan analyse",
+                    "test": "vendor/bin/phpunit",
+                    "test-coverage": "vendor/bin/phpunit --coverage",
+                    "format": "vendor/bin/pint"
+                },
+                "config": {
+                    "sort-packages": true,
+                    "allow-plugins": {
+                        "phpstan/extension-installer": true
+                    }
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "Worldesports\\MultiTenancy\\MultiTenancyServiceProvider"
+                        ],
+                        "aliases": {
+                            "MultiTenancy": "Worldesports\\MultiTenancy\\Facades\\MultiTenancy"
+                        }
+                    }
+                },
+                "minimum-stability": "stable",
+                "prefer-stable": true
             }
-        }
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true
-}

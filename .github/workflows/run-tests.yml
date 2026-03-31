@@ -15,100 +15,21 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
       fail-fast: true
       matrix:
+        php: [8.3, 8.4]
+        laravel: [12.*, 11.*]
+        stability: [prefer-stable]
         include:
-          # Laravel 12 (PHP ≥ 8.3)
-          - os: ubuntu-latest
-            php: 8.3
-            laravel: 12.*
+          - laravel: 12.*
             testbench: 10.*
-            stability: prefer-stable
-          - os: ubuntu-latest
-            php: 8.4
-            laravel: 12.*
-            testbench: 10.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.3
-            laravel: 12.*
-            testbench: 10.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.4
-            laravel: 12.*
-            testbench: 10.*
-            stability: prefer-stable
+          - laravel: 11.*
+            testbench: 9.*
 
-          # Laravel 11 (PHP 8.2–8.4)
-          - os: ubuntu-latest
-            php: 8.2
-            laravel: 11.*
-            testbench: 9.*
-            stability: prefer-stable
-          - os: ubuntu-latest
-            php: 8.3
-            laravel: 11.*
-            testbench: 9.*
-            stability: prefer-stable
-          - os: ubuntu-latest
-            php: 8.4
-            laravel: 11.*
-            testbench: 9.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.2
-            laravel: 11.*
-            testbench: 9.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.3
-            laravel: 11.*
-            testbench: 9.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.4
-            laravel: 11.*
-            testbench: 9.*
-            stability: prefer-stable
-
-          # Laravel 10 (PHP 8.2–8.4) — pin Collision 7.x
-          - os: ubuntu-latest
-            php: 8.2
-            laravel: 10.*
-            testbench: 8.*
-            stability: prefer-stable
-          - os: ubuntu-latest
-            php: 8.3
-            laravel: 10.*
-            testbench: 8.*
-            stability: prefer-stable
-          - os: ubuntu-latest
-            php: 8.4
-            laravel: 10.*
-            testbench: 8.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.2
-            laravel: 10.*
-            testbench: 8.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.3
-            laravel: 10.*
-            testbench: 8.*
-            stability: prefer-stable
-          - os: windows-latest
-            php: 8.4
-            laravel: 10.*
-            testbench: 8.*
-            stability: prefer-stable
-
-
-    name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }} - ${{ matrix.os }}
+    name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }}
 
     steps:
       - name: Checkout code
