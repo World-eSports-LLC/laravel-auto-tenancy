@@ -8,11 +8,15 @@ use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 
 /**
- * Trait for models that need tenant-aware ID scoping
- * This is useful for models that have tenant_id column
+ * @used
  */
+
 trait TenantScoped
 {
+    /**
+     * Trait for models that need tenant-aware ID scoping
+     * This is useful for models that have tenant_id column
+     */
     public static function bootTenantScoped(): void
     {
         static::addGlobalScope('tenant_scoped', function (Builder $builder) {

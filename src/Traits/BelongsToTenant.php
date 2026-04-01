@@ -10,6 +10,9 @@ use InvalidArgumentException;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
 use Worldesports\MultiTenancy\Models\Tenant;
 
+/**
+ * @used
+ */
 trait BelongsToTenant
 {
     private const SCOPE_NAME = 'tenant';

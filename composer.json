@@ -52,7 +52,7 @@
                 "scripts": {
                     "post-autoload-dump": "@composer run prepare",
                     "prepare": "@php vendor/bin/testbench package:discover --ansi",
-                    "analyse": "vendor/bin/phpstan analyse",
+                    "analyse": "php -d memory_limit=1024M ./vendor/bin/phpstan analyse --memory-limit=1024M",
                     "test": "vendor/bin/phpunit",
                     "test-coverage": "vendor/bin/phpunit --coverage",
                     "format": "vendor/bin/pint"

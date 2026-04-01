@@ -20,7 +20,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
-          ini-values: memory_limit=512M
+          ini-values: memory_limit=1024M
 
       - name: Install composer dependencies
         uses: ramsey/composer-install@v3

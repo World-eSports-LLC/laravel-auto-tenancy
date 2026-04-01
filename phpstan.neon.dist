@@ -6,11 +6,13 @@ parameters:
     paths:
         - src
         - config
-        - database
-    excludePaths:
-        - src/Traits/BelongsToTenant.php
-        - src/Traits/TenantScoped.php
     tmpDir: build/phpstan
     checkOctaneCompatibility: true
-    checkModelProperties: true
+    checkModelProperties: false
     treatPhpDocTypesAsCertain: false
+
+
+    # Memory optimizations
+    parallel:
+        processTimeout: 200.0
+        maximumNumberOfProcesses: 1

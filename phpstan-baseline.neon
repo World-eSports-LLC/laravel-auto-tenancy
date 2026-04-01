@@ -1,0 +1,8 @@
+parameters:
+    ignoreErrors:
+        -
+            message: '#Trait Worldesports\\MultiTenancy\\Traits\\BelongsToTenant is used zero times#'
+            path: src/Traits/BelongsToTenant.php
+        -
+            message: '#Trait Worldesports\\MultiTenancy\\Traits\\TenantScoped is used zero times#'
+            path: src/Traits/TenantScoped.php
