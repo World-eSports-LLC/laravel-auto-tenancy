@@ -1,22 +1,56 @@
-# Laravel Multi-Tenancy Package
+# Laravel Auto Tenancy
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/laravel-auto-tenancy)
+Post-authentication multi-tenancy for Laravel applications with runtime tenant connection resolution and automatic database switching after login.
 
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/run-tests.yml?branch=remote&label=tests&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3Arun-tests+branch%3Aremote)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/laravel-auto-tenancy) [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/run-tests.yml?branch=remote&label=tests&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3Arun-tests+branch%3Aremote) [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/fix-php-code-style-issues.yml?branch=remote&label=code%20style&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3A%22Fix+PHP+code+style+issues%22+branch%3Aremote) [![PHPStan](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/phpstan.yml?branch=remote&label=phpstan&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3APHPStan+branch%3Aremote) [![Total Downloads](https://img.shields.io/packagist/dt/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/laravel-auto-tenancy)
 
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/fix-php-code-style-issues.yml?branch=remote&label=code%20style&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3A%22Fix+PHP+code+style+issues%22+branch%3Aremote)
+## What makes this package different?
 
-[![PHPStan](https://img.shields.io/github/actions/workflow/status/World-eSports-LLC/laravel-auto-tenancy/phpstan.yml?branch=remote&label=phpstan&style=flat-square)](https://github.com/World-eSports-LLC/laravel-auto-tenancy/actions?query=workflow%3APHPStan+branch%3Aremote)
+Most Laravel multi-tenancy packages are commonly used in domain-first or subdomain-first workflows, where the tenant is identified from the request before or independently of user authentication.
 
-[![Total Downloads](https://img.shields.io/packagist/dt/worldesports/laravel-auto-tenancy.svg?style=flat-square)](https://packagist.org/packages/worldesports/laravel-auto-tenancy)
+`worldesports/laravel-auto-tenancy` is built for a different workflow:
+
+1. The user logs in or registers first.
+2. The application determines the tenant from the authenticated user.
+3. The package chooses or builds the correct database connection at runtime for that tenant.
+4. The application is automatically switched into the correct tenant database/context.
+
+This makes it a strong fit for Laravel applications where tenancy is resolved **after authentication** rather than solely from the incoming request host.
+
+### Example use case
+
+Your app has a shared login screen for all users.
+
+After authentication:
+
+- `alice@acme.com` should use the ACME tenant database
+- `bob@globex.com` should use the Globex tenant database
+- tenant context is determined from the authenticated user
+- the package automatically switches the application into the correct tenant context
+
+## Good Fit for This Package
+
+Use this package if your app needs to:
+
+- resolve tenancy after login or registration
+- determine the tenant from the authenticated user
+- choose or build the correct tenant database connection at runtime
+- switch tenant databases automatically
+- add tenancy to an existing Laravel auth flow without redesigning the app around domain-first tenancy
+- integrate with existing multi-tenant systems
+
+## When This May Not Be the Right Fit
+
+If your application is primarily domain-first or subdomain-first and you need broader tenant bootstrapping beyond authenticated-user-driven database switching, another tenancy approach may be a better fit.
 
 ## Features
 
 - **Post-authentication multi-tenancy**: Tenants are automatically detected and switched after user login
-- **Multiple database support**: Each tenant can have separate database connections
-- **Zero configuration**: Install and it works - no manual setup required
-- **Automatic tenant switching**: Middleware automatically detects and switches tenant context
-- **Model scoping**: Traits for automatic tenant-aware model queries
+- **Runtime connection resolution**: The package chooses or builds the correct tenant connection for the authenticated user
+- **Multiple database support**: Each tenant can use a separate database connection
+- **Minimal configuration**: Install quickly with sensible defaults
+- **Automatic tenant switching**: Middleware automatically resolves and switches tenant context
+- **Model scoping**: Traits for tenant-aware model queries
 - **Database isolation**: Complete separation between tenant data
 - **Multi-driver support**: MySQL, PostgreSQL, SQLite, and SQL Server
 - **Connection caching**: Optimized database connection management
@@ -85,7 +119,7 @@ return [
 ];
 ```
 
-## Configuration
+## Basic Usage
 
 ### 1. User Model Configuration
 
@@ -110,7 +144,7 @@ npm install && npm run dev
 php artisan migrate
 
 # Then install multi-tenancy
-composer require worldesports/multi-tenancy
+composer require worldesports/laravel-auto-tenancy
 php artisan tenant:install --migrate
 ```
 
@@ -123,7 +157,7 @@ npm install && npm run build
 php artisan migrate
 
 # Then install multi-tenancy
-composer require worldesports/multi-tenancy
+composer require worldesports/laravel-auto-tenancy
 php artisan tenant:install --migrate
 ```
 
@@ -135,7 +169,7 @@ php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
 php artisan migrate
 
 # Then install multi-tenancy
-composer require worldesports/multi-tenancy
+composer require worldesports/laravel-auto-tenancy
 php artisan tenant:install --migrate
 ```
 
@@ -146,11 +180,11 @@ composer require laravel/socialite
 # Configure OAuth providers in config/services.php
 
 # Then install multi-tenancy
-composer require worldesports/multi-tenancy
+composer require worldesports/laravel-auto-tenancy
 php artisan tenant:install --migrate
 ```
 
-## Configuration
+## Setup and Usage
 
 ### 1. Register the middleware (optional)
 
@@ -364,7 +398,7 @@ MultiTenancy::resetTenant();
 MultiTenancy::purgeConnections();
 ```
 
-### Querying for a specific tenant (and database) without changing global context
+### Querying for a specific tenant (and database) without changing the global context
 
 ```php
 // Scope a model to a tenant (uses its primary DB)
@@ -687,7 +721,7 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 
 ## Security Vulnerabilities
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+Please review [our security policy](SECURITY.md) on how to report security vulnerabilities.
 
 ## Credits
 
