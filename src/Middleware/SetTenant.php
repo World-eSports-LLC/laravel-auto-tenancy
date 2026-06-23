@@ -7,11 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Worldesports\MultiTenancy\Facades\MultiTenancy;
-use Worldesports\MultiTenancy\Models\Tenant;
+use Worldesports\MultiTenancy\Services\TenantResolverService;
 
 class SetTenant
 {
-    public function handle(Request $request, Closure $next, ?string $action = 'redirect')
+    private TenantResolverService $tenantResolver;
+
+    public function __construct(?TenantResolverService $tenantResolver = null)
+    {
+        $this->tenantResolver = $tenantResolver ?? app(TenantResolverService::class);
+    }
+
+    public function handle(Request $request, Closure $next, ?string $action = 'ignore')
     {
         try {
             if ($user = $request->user()) {
@@ -21,13 +28,13 @@ class SetTenant
                     if ($response) {
                         return $response;
                     }
+
+                    return $next($request);
                 }
 
-                $tenant = Tenant::where('user_id', $user->getKey())
-                    ->orderByRaw('(SELECT COUNT(*) FROM tenant_databases WHERE tenant_id = tenants.id AND is_primary = true) DESC')
-                    ->first();
+                $tenant = $this->tenantResolver->resolveForUser($user, $request);
 
-                if ($tenant) {
+                if ($tenant && MultiTenancy::userHasAccessToTenant($user, $tenant)) {
                     try {
                         MultiTenancy::setTenant($tenant);
                     } catch (\Exception $e) {
@@ -37,8 +44,10 @@ class SetTenant
                         }
                     }
                 } else {
-                    // No tenant found for user
-                    return $this->handleNoTenant($request, $action);
+                    $response = $this->handleNoTenant($request, $action);
+                    if ($response) {
+                        return $response;
+                    }
                 }
             } else {
                 // No authenticated user
@@ -63,8 +72,12 @@ class SetTenant
                 return response()->json(['error' => 'No tenant assigned to user'], 403);
 
             case 'redirect':
-                $routeName = config('multi-tenancy.tenant_setup_route', 'tenant.setup');
-                if ($routeName && Route::has($routeName)) {
+                $routeName = config('multi-tenancy.tenant_setup_route');
+                if (! $routeName) {
+                    return null;
+                }
+
+                if (Route::has($routeName)) {
                     return redirect()->route($routeName)->with('error', 'Please contact support to set up your tenant.');
                 }
 
@@ -73,7 +86,7 @@ class SetTenant
 
             case 'ignore':
             default:
-                return response()->json(['warning' => 'No tenant assigned'], 200);
+                return null;
         }
     }
 

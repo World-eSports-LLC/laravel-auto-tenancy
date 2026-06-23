@@ -99,13 +99,9 @@ class TestCase extends Orchestra
         foreach ($migrations as $filename => $source) {
             $target = $path.'/'.$filename;
             if (is_string($source) && file_exists($source)) {
-                if (! file_exists($target)) {
-                    copy($source, $target);
-                }
+                copy($source, $target);
             } else {
-                if (! file_exists($target)) {
-                    file_put_contents($target, $source);
-                }
+                file_put_contents($target, $source);
             }
         }
 

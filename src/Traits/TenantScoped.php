@@ -10,7 +10,6 @@ use Worldesports\MultiTenancy\Models\Tenant;
 /**
  * @used
  */
-
 trait TenantScoped
 {
     /**

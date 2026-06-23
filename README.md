@@ -23,10 +23,10 @@ Your app has a shared login screen for all users.
 
 After authentication:
 
-- `alice@acme.com` should use the ACME tenant database
-- `bob@globex.com` should use the Globex tenant database
-- tenant context is determined from the authenticated user
-- the package automatically switches the application into the correct tenant context
+- user ID 1 should use the tenant/database provisioned for user ID 1
+- user ID 2 should use the tenant/database provisioned for user ID 2
+- tenant context is determined from the authenticated user by default
+- the package switches the application into the correct tenant database/context
 
 ## Good Fit for This Package
 
@@ -100,20 +100,23 @@ The published config file (`config/multi-tenancy.php`) contains:
 <?php
 
 return [
-    // Your User model - automatically detects the model used by your auth system
-    'user_model' => env('MULTI_TENANT_USER_MODEL', 'App\\Models\\User'),
+    // Your User model
+    'user_model' => App\\Models\\User::class,
     
     // Main database connection
-    'main_connection' => env('DB_CONNECTION', 'mysql'),
+    'main_connection' => config('database.default', 'mysql'),
     
     // Auto-create tenant on user registration (optional)
-    'auto_create_tenant' => env('MULTI_TENANT_AUTO_CREATE', false),
+    'auto_create_tenant' => false,
+
+    // Optional email-domain detection; disabled by default for security
+    'auto_detect_by_email' => false,
     
     // Performance optimizations
-    'cache_connections' => env('MULTI_TENANT_CACHE_CONNECTIONS', true),
+    'cache_connections' => true,
     
     // Security features
-    'encrypt_connection_details' => env('MULTI_TENANT_ENCRYPT', false),
+    'encrypt_connection_details' => false,
     
     // ... more options
 ];
@@ -128,9 +131,6 @@ The package automatically works with your existing User model. If you're using a
 ```php
 // In config/multi-tenancy.php
 'user_model' => App\Models\CustomUser::class,
-
-// Or via environment variable
-MULTI_TENANT_USER_MODEL="App\\Models\\CustomUser"
 ```
 
 ### 2. Authentication System Compatibility
@@ -410,73 +410,73 @@ Invoice::forTenant($tenantId = 10, $databaseId = 22)->get();
 
 > Note: The package keeps **one active tenant database at a time** per request/context. You can pick which tenant DB to use, but queries execute against a single selected database, not multiple concurrently.
 
-### Automatic Tenant Detection
+### Tenant Resolution
 
-The package provides **multiple automatic tenant detection strategies** - no manual user mapping required!
+By default, the package resolves tenants **after authentication** by matching the authenticated user's primary key to `tenants.user_id`. That is the recommended production path because it does not trust hostnames or email domains for tenant membership.
 
-When a user logs in, the package tries these detection methods **in order**:
+```bash
+php artisan tenant:create 123 "Manual Tenant"
+```
 
-#### **🎯 Strategy 1: Email Domain Detection**
-Users are automatically mapped to tenants based on their email domain:
+When user ID `123` logs in and the `tenant` middleware runs, the package loads that user's tenant, builds the tenant database connection from the stored `tenant_databases.connection_details`, and switches the request to that connection.
+
+#### Optional Strategy: Email Domain Detection
+Email-domain detection is available, but it is disabled by default. Enable it only if your application treats matching email domains as authorized tenant membership:
 
 ```bash
 # Create tenant for a company
 php artisan tenant:create 1 "ACME Corporation" --domain=acme.com
-
-# When user registers with alice@acme.com, they're automatically assigned to ACME tenant
-# When user registers with bob@acme.com, they're also assigned to ACME tenant
 ```
 
 **Configuration:**
-```env
-MULTI_TENANT_AUTO_DETECT_EMAIL=true  # Default: enabled
+```php
+'auto_detect_by_email' => true,
 ```
 
-#### **🎯 Strategy 2: Subdomain Detection**
-Tenants detected by subdomain in the URL:
+Also enable domain-based access if non-owner users should be authorized by exact email-domain match:
+
+```php
+'security' => [
+    'allow_email_domain_access' => true,
+],
+```
+
+#### Optional Strategy: Subdomain Detection
+Subdomain detection is available, but disabled by default and should be paired with Laravel trusted-host protection:
 
 ```bash
 # Create tenant with subdomain
 php artisan tenant:create 2 "Client Portal" --subdomain=client1
-
-# When users visit client1.yourapp.com, they automatically use Client Portal tenant
-# When users visit client2.yourapp.com, they use a different tenant
 ```
 
 **Configuration:**
-```env
-MULTI_TENANT_AUTO_DETECT_SUBDOMAIN=true  # Default: disabled
+```php
+'subdomain' => [
+    'enabled' => true,
+    'base_domain' => 'example.com',
+],
 ```
 
-#### **🎯 Strategy 3: Auto-Create Tenants**
-Automatically create tenants for new users:
+#### Optional Strategy: Auto-Create Tenants
+Auto-create is disabled by default. For production v1 usage, prefer `tenant:create` because it explicitly provisions the tenant database credentials used for runtime switching:
 
 ```bash
-# No tenant setup required - tenants created automatically on first login
+php artisan tenant:create 123 "Manual Tenant"
 ```
 
 **Configuration:**
-```env
-MULTI_TENANT_AUTO_CREATE=true       # Auto-create tenants
-MULTI_TENANT_AUTO_CREATE_DB=true    # Also create databases automatically
+```php
+'auto_create_tenant' => true,
 ```
 
-#### **🎯 Strategy 4: Manual Mapping (Fallback)**
-Direct user-to-tenant assignment:
-
-```bash
-php artisan tenant:create 123 "Manual Tenant"  # User ID 123 gets this tenant
-```
-
-**The beauty: You can mix and match these strategies!**
+`tenant:create` remains the provisioning path for database credentials. Runtime requests do not use root/admin credentials.
 
 ### Using the Middleware
 
-The `SetTenant` middleware automatically resolves the tenant for authenticated users:
+The `SetTenant` middleware resolves tenant context for authenticated users. It is non-enforcing by default; use `tenant.required` on routes that must have tenant context.
 
 ```php
-// The middleware is automatically applied after user authentication
-// You can also manually apply it to specific routes
+// Apply the tenant middleware after auth on routes that should resolve tenant context
 Route::middleware(['auth', \Worldesports\MultiTenancy\Middleware\SetTenant::class])
     ->get('/dashboard', [DashboardController::class, 'index']);
 
@@ -492,23 +492,36 @@ Route::middleware(['auth', 'tenant', 'tenant.required'])
 ```
 
 Middleware options:
-- `redirect` (default): Redirect with error message
-- `error`: Return JSON error response
-- `ignore`: Log error but continue
+- `ignore` (default): Continue when no tenant exists
+- `error`: Return JSON error response when no tenant exists
+- `redirect`: Redirect to `multi-tenancy.tenant_setup_route` when configured
 
 ## Advanced Configuration
 
-### Environment Variables
+### Common Configuration
 
-```env
-# Auto-create tenant on user registration
-MULTI_TENANT_AUTO_CREATE=true
+After publishing `config/multi-tenancy.php`, common production settings include:
 
-# Cache database connections for performance
-MULTI_TENANT_CACHE_CONNECTIONS=true
+```php
+'auto_create_tenant' => false,
 
-# Encrypt connection details in database
-MULTI_TENANT_ENCRYPT=true
+'auto_detect_by_email' => false,
+
+'subdomain' => [
+    'enabled' => false,
+    'base_domain' => null,
+],
+
+'tenant_migrations_path' => database_path('migrations/tenant'),
+
+'cache_connections' => true,
+
+'encrypt_connection_password' => true,
+
+'security' => [
+    'check_user_tenant_access' => true,
+    'allow_email_domain_access' => false,
+],
 ```
 
 ### Event Listeners
@@ -572,21 +585,21 @@ class Order extends Model
 ## Multi-User & Concurrent Session Support
 
 ### **✅ Multiple Users, Different Tenants**
-Each user session maintains its own tenant context:
+Each authenticated request resolves its own tenant context:
 
 ```php
-// User A logs in (alice@acme.com) → automatically uses ACME tenant database
-// User B logs in (bob@widget.com) → automatically uses Widget tenant database  
-// User C logs in (carol@acme.com) → automatically uses ACME tenant database
+// User A logs in → uses the tenant database provisioned for User A
+// User B logs in → uses the tenant database provisioned for User B
+// User C logs in → uses the tenant database provisioned for User C
 
 // All three users can be using the app simultaneously with different tenant databases!
 ```
 
-### **✅ Session Isolation**
-- Each user's session maintains independent tenant context
+### **✅ Request Isolation**
+- Each request receives a fresh tenant context from the authenticated user
 - No interference between concurrent users
-- Thread-safe tenant switching
-- Automatic cleanup on logout
+- Tenant context is reset after the request to support long-lived workers
+- Use the `tenant` middleware on authenticated web/API routes that need tenant data
 
 ### **✅ API & Web Support**
 ```php
@@ -628,8 +641,8 @@ class SocialAuthController extends Controller
         // Log the user in
         Auth::login($user);
         
-        // Multi-tenancy package automatically detects and switches tenant!
-        // No additional code needed - the package listens to Login event
+        // The login listener can set tenant context for this request.
+        // Keep the tenant middleware on authenticated routes for later requests.
         
         return redirect()->intended('/dashboard');
     }
@@ -639,9 +652,9 @@ class SocialAuthController extends Controller
 ### Example 2: API Authentication with Sanctum
 
 ```php
-// API route with automatic tenant switching
-Route::middleware(['auth:sanctum'])->group(function () {
-    // The SetTenant middleware automatically applies tenant context
+// API route with post-auth tenant switching
+Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
+    // The tenant middleware applies tenant context for the authenticated user
     Route::get('/api/tenant-data', function (Request $request) {
         // All queries automatically use the user's tenant database
         $data = SomeModel::all(); // Automatically scoped to tenant
@@ -649,7 +662,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 });
 
-// The package automatically handles tenant switching for API requests
+// Add tenant.required to routes that must fail closed when no tenant exists.
 ```
 
 ### Example 3: Custom Authentication Guard
@@ -681,7 +694,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 ```php
 // For applications with multiple user types (admin, customer, etc.)
 Route::middleware(['auth:web'])->group(function () {
-    // Regular customer routes - automatic tenant switching
+    // Add 'tenant' to regular customer routes that need tenant context
 });
 
 Route::middleware(['auth:admin'])->group(function () {
@@ -698,15 +711,14 @@ Route::middleware(['auth:admin'])->group(function () {
 // Enable auto-tenant creation in config/multi-tenancy.php
 'auto_create_tenant' => true,
 
-// Or via environment variable
-MULTI_TENANT_AUTO_CREATE=true
-
-// Now when users register (through ANY method), they automatically get a tenant:
+// When this optional listener is enabled, newly registered users get a tenant row:
 // - Social media registration
 // - Email/password registration  
 // - API registration
 // - SSO registration
 // - Any custom registration flow
+//
+// Production apps should still provision tenant database credentials with tenant:create.
 ```
 
 ## Testing

@@ -33,8 +33,12 @@ return [
     |
     */
 
-    // Auto-detect tenant by email domain (user@company.com -> Company tenant)
-    'auto_detect_by_email' => true,
+    // Optional: auto-detect tenant by email domain (user@company.com -> Company tenant)
+    // Disabled by default because post-authenticated user ownership is the safer default.
+    'auto_detect_by_email' => false,
+
+    // Email domains that should never be used for automatic tenant matching
+    'generic_email_domains' => ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'],
 
     // Subdomain detection settings
     'subdomain' => [
@@ -77,6 +81,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tenant Migrations
+    |--------------------------------------------------------------------------
+    |
+    | Migrations run by tenant:migrate must be separate from central app/package
+    | migrations so tenant databases do not receive tenant-management tables.
+    |
+    */
+    'tenant_migrations_path' => database_path('migrations/tenant'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Security Settings
     |--------------------------------------------------------------------------
     |
@@ -91,6 +106,7 @@ return [
 
     'security' => [
         'check_user_tenant_access' => true, // Verify user has access to tenant
+        'allow_email_domain_access' => false, // Opt-in domain-based tenant access
         'log_tenant_switches' => true, // Log when tenants are switched
         'max_connection_attempts' => 3, // Max attempts for database connections
     ],

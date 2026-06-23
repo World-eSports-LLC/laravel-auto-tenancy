@@ -104,10 +104,65 @@ class MiddlewareTest extends TestCase
             return response('OK');
         });
 
-        // Check that no tenant was set and request was redirected
+        // Check that no tenant was set and the non-enforcing middleware continued
         $this->assertFalse(MultiTenancy::hasTenant());
-        $this->assertTrue($response->isRedirect());
-        $this->assertSame('http://localhost', $response->getTargetUrl());
+        $this->assertSame('OK', $response->getContent());
+    }
+
+    /** @test */
+    public function test_middleware_uses_domain_resolution_when_domain_access_is_enabled()
+    {
+        config()->set('multi-tenancy.auto_detect_by_email', true);
+        config()->set('multi-tenancy.security.allow_email_domain_access', true);
+
+        $tenant = $this->createTenantWithDatabase();
+        $tenant->update(['domain' => 'example.com']);
+
+        $user = TestUser::factory()->create([
+            'name' => 'Domain User',
+            'email' => 'domain-user@example.com',
+        ]);
+
+        $request = Request::create('/test', 'GET');
+        $request->setUserResolver(fn () => $user);
+
+        $tenantWasSetDuringRequest = false;
+
+        $middleware = new SetTenant;
+        $response = $middleware->handle($request, function ($req) use (&$tenantWasSetDuringRequest) {
+            $tenantWasSetDuringRequest = MultiTenancy::hasTenant();
+
+            return response('OK');
+        });
+
+        $this->assertTrue($tenantWasSetDuringRequest);
+        $this->assertSame('OK', $response->getContent());
+    }
+
+    /** @test */
+    public function test_middleware_does_not_switch_to_domain_tenant_without_access()
+    {
+        config()->set('multi-tenancy.auto_detect_by_email', true);
+        config()->set('multi-tenancy.security.allow_email_domain_access', false);
+
+        $tenant = $this->createTenantWithDatabase();
+        $tenant->update(['domain' => 'example.com']);
+
+        $user = TestUser::factory()->create([
+            'name' => 'Domain User',
+            'email' => 'domain-user@example.com',
+        ]);
+
+        $request = Request::create('/test', 'GET');
+        $request->setUserResolver(fn () => $user);
+
+        $middleware = new SetTenant;
+        $response = $middleware->handle($request, function ($req) {
+            return response('OK');
+        });
+
+        $this->assertFalse(MultiTenancy::hasTenant());
+        $this->assertSame('OK', $response->getContent());
     }
 
     protected function createTenantWithDatabase(): Tenant

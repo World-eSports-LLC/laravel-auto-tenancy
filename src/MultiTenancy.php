@@ -3,8 +3,10 @@
 namespace Worldesports\MultiTenancy;
 
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
@@ -233,8 +235,32 @@ class MultiTenancy
         $this->switchToMainConnection();
         $this->tenant = null;
         $this->tenantId = null;
+        $this->tenantDatabaseId = null;
         $this->currentConnectionName = null;
         $this->purgeConnections();
+    }
+
+    public function userHasAccessToTenant(Model $user, Tenant $tenant): bool
+    {
+        if (! config('multi-tenancy.security.check_user_tenant_access', true)) {
+            return true;
+        }
+
+        if ((string) $tenant->user_id === (string) $user->getKey()) {
+            return true;
+        }
+
+        if (! config('multi-tenancy.security.allow_email_domain_access', false)) {
+            return false;
+        }
+
+        $email = (string) $user->getAttribute('email');
+
+        if (! str_contains($email, '@') || ! $tenant->domain) {
+            return false;
+        }
+
+        return strtolower((string) $tenant->domain) === strtolower(Str::afterLast($email, '@'));
     }
 
     public function getTenantDatabases(): array

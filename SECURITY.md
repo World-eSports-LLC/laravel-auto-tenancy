@@ -39,12 +39,12 @@ When using Laravel Auto Tenancy, please follow these security guidelines:
 ### 1. Protect Connection Details
 
 - **Never commit** database credentials to version control
-- Store credentials in `.env` files (and exclude from git)
-- Use environment variables for all sensitive configuration
-- Enable connection encryption in production:
+- Store application secrets in `.env` files (and exclude from git)
+- Store tenant database credentials through `tenant:create` so the package can encrypt the database password at rest
+- Keep password encryption enabled in production:
 
-```env
-MULTI_TENANT_ENCRYPT=true
+```php
+'encrypt_connection_password' => true,
 ```
 
 ### 2. Validate User Access
@@ -60,6 +60,8 @@ if (!MultiTenancy::userHasAccessToTenant($user, $tenant)) {
 }
 ```
 
+By default, tenant access is owner-only: the authenticated user's key must match `tenants.user_id`. Email-domain and subdomain detection are optional helpers, not the default security boundary.
+
 ### 3. Secure Database Credentials
 
 - Use strong, unique passwords for each tenant database
@@ -69,7 +71,7 @@ if (!MultiTenancy::userHasAccessToTenant($user, $tenant)) {
 
 ### 4. Validate Subdomain Detection
 
-If using subdomain-based tenant detection, ensure your web server is configured to validate allowed hostnames:
+Subdomain-based tenant detection is disabled by default. If you enable it, ensure your web server is configured to validate allowed hostnames:
 
 ```php
 // Use Laravel's TrustedHosts middleware
@@ -171,7 +173,7 @@ Security patches will be released as:
 
 5. **Encryption Support**
    - Optional encryption for connection details in database
-   - Enable via `MULTI_TENANT_ENCRYPT=true`
+   - Keep `encrypt_connection_password` enabled
 
 6. **Access Control**
    - Built-in authorization checks for tenant access
@@ -231,4 +233,3 @@ If you have security questions or need clarification, please email **[security@w
 **Last Updated:** April 1, 2026  
 **Package:** Laravel Auto Tenancy v1.0.0+  
 **Maintained by:** World eSports LLC
-

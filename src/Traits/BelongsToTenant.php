@@ -69,12 +69,9 @@ trait BelongsToTenant
                         $this->ensureConnectionConfiguration($connectionName, $database->connection_details);
                     }
 
-                    // Track the database context without switching globals
-                    MultiTenancy::useDatabase($database, switchDefault: false);
-
                     $query->getModel()->setConnection($connectionName);
 
-                    return $query->getModel()->newQuery();
+                    return $query;
                 }
             }
         }
@@ -84,7 +81,7 @@ trait BelongsToTenant
             if ($connectionName) {
                 $query->getModel()->setConnection($connectionName);
 
-                return $query->getModel()->newQuery();
+                return $query;
             }
         }
 

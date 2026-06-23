@@ -155,4 +155,89 @@ class CommandTest extends TestCase
             ->expectsOutput('Total Tenants: 1')
             ->assertExitCode(0);
     }
+
+    /** @test */
+    public function test_tenant_migrate_uses_configured_tenant_migration_path()
+    {
+        $path = sys_get_temp_dir().'/tenant-migrations-configured';
+        if (! is_dir($path)) {
+            mkdir($path, 0777, true);
+        }
+
+        config()->set('multi-tenancy.tenant_migrations_path', $path);
+
+        $tenant = Tenant::create([
+            'user_id' => 1,
+            'name' => 'Test Company',
+        ]);
+
+        TenantDatabase::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'tenant_migrate_db',
+            'connection_details' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+            ],
+        ]);
+
+        $this->artisan('tenant:migrate', ['--tenant' => $tenant->id])
+            ->expectsOutputToContain('Migrations completed')
+            ->assertExitCode(0);
+    }
+
+    /** @test */
+    public function test_tenant_migrate_fails_when_tenant_migration_path_is_missing()
+    {
+        config()->set('multi-tenancy.tenant_migrations_path', sys_get_temp_dir().'/missing-tenant-migrations');
+
+        $tenant = Tenant::create([
+            'user_id' => 1,
+            'name' => 'Test Company',
+        ]);
+
+        TenantDatabase::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'tenant_migrate_db',
+            'connection_details' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+            ],
+        ]);
+
+        $this->artisan('tenant:migrate', ['--tenant' => $tenant->id])
+            ->expectsOutputToContain('Tenant migration path does not exist')
+            ->assertExitCode(1);
+    }
+
+    /** @test */
+    public function test_tenant_migrate_path_option_overrides_configured_path()
+    {
+        $path = sys_get_temp_dir().'/tenant-migrations-option';
+        if (! is_dir($path)) {
+            mkdir($path, 0777, true);
+        }
+
+        config()->set('multi-tenancy.tenant_migrations_path', sys_get_temp_dir().'/missing-tenant-migrations');
+
+        $tenant = Tenant::create([
+            'user_id' => 1,
+            'name' => 'Test Company',
+        ]);
+
+        TenantDatabase::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'tenant_migrate_db',
+            'connection_details' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+            ],
+        ]);
+
+        $this->artisan('tenant:migrate', [
+            '--tenant' => $tenant->id,
+            '--path' => $path,
+        ])
+            ->expectsOutputToContain('Migrations completed')
+            ->assertExitCode(0);
+    }
 }

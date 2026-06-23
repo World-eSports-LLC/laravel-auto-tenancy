@@ -52,6 +52,22 @@ class CreateTenantCommand extends Command
             return self::FAILURE;
         }
 
+        if ($domain = $this->option('domain')) {
+            if (Tenant::where('domain', strtolower((string) $domain))->exists()) {
+                $this->error("Tenant already exists for domain {$domain}.");
+
+                return self::FAILURE;
+            }
+        }
+
+        if ($subdomain = $this->option('subdomain')) {
+            if (Tenant::where('subdomain', strtolower((string) $subdomain))->exists()) {
+                $this->error("Tenant already exists for subdomain {$subdomain}.");
+
+                return self::FAILURE;
+            }
+        }
+
         // Get database connection details
         $dbName = $this->option('db-name') ?? "tenant_{$userId}_db";
         $dbHost = $this->option('db-host');
@@ -132,6 +148,11 @@ class CreateTenantCommand extends Command
             'password' => $dbPassword,
         ];
 
+        // Test database server connection first.
+        if (! $this->validateDatabaseConnection($connectionDetails)) {
+            return self::FAILURE;
+        }
+
         if (! $this->confirmTenantCreation($tenantName, (string) $userId, $connectionDetails)) {
             if ($this->input->isInteractive()) {
                 $this->info('Operation cancelled.');
@@ -139,10 +160,6 @@ class CreateTenantCommand extends Command
                 return self::SUCCESS;
             }
 
-            return self::FAILURE;
-        }
-
-        if (! $this->validateDatabaseConnection($connectionDetails)) {
             return self::FAILURE;
         }
 
@@ -179,8 +196,8 @@ class CreateTenantCommand extends Command
             $tenant = Tenant::create([
                 'user_id' => $userId,
                 'name' => $tenantName,
-                'domain' => $this->option('domain'),
-                'subdomain' => $this->option('subdomain'),
+                'domain' => $domain ? strtolower((string) $domain) : null,
+                'subdomain' => $subdomain ? strtolower((string) $subdomain) : null,
             ]);
 
             // Create tenant database with driver-specific connection details
@@ -216,11 +233,13 @@ class CreateTenantCommand extends Command
                     break;
             }
 
+            $isPrimary = $tenant->databases()->doesntExist() || (bool) $this->option('primary');
+
             $tenantDatabase = TenantDatabase::create([
                 'tenant_id' => $tenant->id,
                 'name' => $dbName,
                 'connection_details' => $connectionDetails,
-                'is_primary' => $this->option('primary') ?: true, // Default to primary if it's the first database
+                'is_primary' => $isPrimary,  // Default to primary if it's the first database
             ]);
 
             $this->info("✅ Tenant '{$tenantName}' created successfully!");
@@ -247,7 +266,10 @@ class CreateTenantCommand extends Command
             return;
         }
 
-        $dsn = "{$driver}:host={$host};port={$port};dbname={$database}";
+        $dsn = $driver === 'sqlsrv'
+            ? "sqlsrv:Server={$host},".($port ?? 1433).";Database={$database}"
+            : "{$driver}:host={$host};port={$port};dbname={$database}";
+
         $pdo = new \PDO($dsn, $username, $password);
         $pdo->query('SELECT 1');
     }
@@ -268,8 +290,13 @@ class CreateTenantCommand extends Command
                 return true;
             }
 
-            // Test connection without database first (for creation)
-            $dsn = "{$connectionDetails['driver']}:host={$connectionDetails['host']};port={$connectionDetails['port']}";
+            // Test connection without the tenant database first.
+            $dsn = match ($connectionDetails['driver']) {
+                'pgsql' => "pgsql:host={$connectionDetails['host']};port={$connectionDetails['port']};dbname=postgres",
+                'sqlsrv' => "sqlsrv:Server={$connectionDetails['host']},".($connectionDetails['port'] ?? 1433).';Database=master',
+                default => "{$connectionDetails['driver']}:host={$connectionDetails['host']};port={$connectionDetails['port']}",
+            };
+
             $pdo = new \PDO($dsn, $connectionDetails['username'], $connectionDetails['password']);
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 

@@ -118,4 +118,24 @@ class TraitTest extends TestCase
 
         $this->assertInstanceOf(Builder::class, $query);
     }
+
+    /** @test */
+    public function test_for_tenant_preserves_existing_query_constraints()
+    {
+        $model = new class extends Model
+        {
+            use BelongsToTenant;
+
+            protected $table = 'test_models';
+        };
+
+        MultiTenancy::setTenant($this->tenant);
+
+        $query = $model->newQuery()
+            ->where('name', 'Alpha')
+            ->forTenant();
+
+        $this->assertStringContainsString('name', $query->toSql());
+        $this->assertSame(['Alpha'], $query->getBindings());
+    }
 }

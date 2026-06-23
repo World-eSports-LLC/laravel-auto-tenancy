@@ -59,7 +59,7 @@ class MultiTenancyServiceProvider extends PackageServiceProvider
     {
         parent::boot();
 
-        // Middleware alias for routes that must enforce tenant context
+        // `tenant` resolves context; `tenant.required` enforces that context exists.
         $this->app['router']->aliasMiddleware('tenant.required', RequireTenant::class);
         $this->app['router']->aliasMiddleware('tenant', SetTenant::class);
 

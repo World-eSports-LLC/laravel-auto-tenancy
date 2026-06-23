@@ -44,10 +44,9 @@ class Tenant extends Model
     }
 
     /**
-     * Relationship: One user can have many tenants.
-     * This supports a 1:many architecture where a single authenticated user
-     * can own or manage multiple organizations/workspaces.
-     * If you need to restrict to 1 tenant per user, enforce that at the application level.
+     * Databases available to this tenant.
+     * The default provisioning command creates one tenant per user, and a tenant
+     * can then have one or more database connections.
      */
     public function databases(): HasMany
     {

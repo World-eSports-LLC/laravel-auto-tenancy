@@ -15,6 +15,7 @@ class TenantMigrateCommand extends Command
     public $signature = 'tenant:migrate
                         {--tenant= : Specific tenant ID to migrate}
                         {--database= : Specific database ID to migrate}
+                        {--path= : Path to tenant migrations}
                         {--fresh : Drop all tables and re-run migrations}
                         {--seed : Run seeders after migrations}
                         {--rollback : Rollback the last batch of migrations}
@@ -108,7 +109,17 @@ class TenantMigrateCommand extends Command
 
             // Determine migration command
             $command = 'migrate';
-            $options = ['--database' => $connectionName, '--force' => true];
+            $path = $this->resolveTenantMigrationPath();
+
+            if (! $path) {
+                return self::FAILURE;
+            }
+
+            $options = [
+                '--database' => $connectionName,
+                '--force' => true,
+                '--path' => $path,
+            ];
 
             if ($this->option('fresh')) {
                 $command = 'migrate:fresh';
@@ -143,5 +154,26 @@ class TenantMigrateCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function resolveTenantMigrationPath(): ?string
+    {
+        $path = $this->option('path') ?: config('multi-tenancy.tenant_migrations_path');
+
+        if (! is_string($path) || $path === '') {
+            $this->error('Tenant migration path is not configured. Set multi-tenancy.tenant_migrations_path or pass --path.');
+
+            return null;
+        }
+
+        $resolvedPath = is_dir($path) ? $path : base_path($path);
+
+        if (! is_dir($resolvedPath)) {
+            $this->error("Tenant migration path does not exist: {$path}");
+
+            return null;
+        }
+
+        return $resolvedPath;
     }
 }

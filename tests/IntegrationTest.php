@@ -11,7 +11,7 @@ use Worldesports\MultiTenancy\Models\Tenant;
 use Worldesports\MultiTenancy\Models\TenantDatabase;
 use Worldesports\MultiTenancy\Tests\Concerns\UsesTestMigrations;
 
-class iIntegrationTest extends TestCase
+class IntegrationTest extends TestCase
 {
     use UsesTestMigrations;
 
@@ -125,7 +125,39 @@ class iIntegrationTest extends TestCase
         $this->assertFalse(MultiTenancy::hasTenant());
         $this->assertNull(MultiTenancy::getTenant());
         $this->assertNull(MultiTenancy::getTenantId());
+        $this->assertNull(MultiTenancy::getCurrentDatabaseId());
         $this->assertNull(MultiTenancy::getCurrentConnectionName());
+    }
+
+    /** @test */
+    public function test_user_access_to_tenant_defaults_to_owner_only()
+    {
+        $tenant = $this->createTenantWithDatabase();
+        $otherUser = TestUser::factory()->create([
+            'name' => 'Other User',
+            'email' => 'other@example.com',
+        ]);
+
+        $this->assertTrue(MultiTenancy::userHasAccessToTenant($this->user, $tenant));
+        $this->assertFalse(MultiTenancy::userHasAccessToTenant($otherUser, $tenant));
+    }
+
+    /** @test */
+    public function test_domain_access_requires_explicit_opt_in()
+    {
+        $tenant = $this->createTenantWithDatabase();
+        $tenant->update(['domain' => 'example.com']);
+
+        $domainUser = TestUser::factory()->create([
+            'name' => 'Domain User',
+            'email' => 'domain-user@example.com',
+        ]);
+
+        config()->set('multi-tenancy.security.allow_email_domain_access', false);
+        $this->assertFalse(MultiTenancy::userHasAccessToTenant($domainUser, $tenant));
+
+        config()->set('multi-tenancy.security.allow_email_domain_access', true);
+        $this->assertTrue(MultiTenancy::userHasAccessToTenant($domainUser, $tenant));
     }
 
     /** @test */

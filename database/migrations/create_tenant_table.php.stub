@@ -9,8 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tenants', function (Blueprint $table) {
+            $userModel = config('multi-tenancy.user_model', 'App\\Models\\User');
+            $userTable = class_exists($userModel) ? (new $userModel)->getTable() : 'users';
+
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained($userTable)->cascadeOnDelete();
             $table->string('name');
             $table->timestamps();
         });

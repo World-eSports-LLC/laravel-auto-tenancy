@@ -14,7 +14,7 @@ You have a SaaS application where:
 - Multiple **organizations/leagues/companies** (Tenants) use the same app
 - Each Tenant needs its **own isolated database** with separate data
 - When a user logs in, you need to automatically switch to **their tenant's database**
-- All queries should use that tenant's database for the session
+- Tenant-aware queries should use that tenant's database for the request
 
 ### Your Use Case (League Manager)
 
@@ -25,8 +25,8 @@ User Registration/Admin Setup:
   3. Admin assigns Users to that League
 
 User Login:
-  1. User logs in → SetTenantOnLogin fires
-  2. Listener finds User → Tenant (user_id→tenants.user_id)
+  1. User logs in → SetTenantOnLogin fires for the login request
+  2. Listener resolves User → Tenant through TenantResolverService
   3. Finds Tenant → Database (primaryDatabase())
   4. Switches Laravel's database connection to that Tenant's database
   5. All User queries use Tenant database
@@ -91,7 +91,7 @@ $user = User::create([
 
 ### Step 2: Find User's Tenant
 ```php
-// SetTenantOnLogin.php → handle() → findTenantByUserId()
+// TenantResolverService.php → resolveForUser() → findTenantByUserId()
 $tenant = Tenant::where('user_id', $user->id)->first();
 // Finds: Tenant with id=1, name='League A'
 ```
@@ -183,16 +183,16 @@ $tenant = Tenant::find($user->tenant_id);
    $tenant = Tenant::where('user_id', $user->getKey())->first();
    ```
 
-2. **Secondary Strategies (config gated)**:
+2. **Secondary Strategies (config gated and disabled by default)**:
    - Email domain detection
    - Subdomain detection (with base-domain validation)
-   - Auto-create tenant (and optional default database) if none exists
+   - Auto-create is not part of runtime resolution; provision tenant DB credentials with `tenant:create`.
 
 3. **Tenant DB choice**: Uses `setTenant($tenant, $databaseId = null)` which follows the priority described above.
 
 ### Route Protection / Request Lifecycle
 
-- `SetTenant` middleware resolves and sets the tenant (and DB).
+- `SetTenant` middleware resolves and sets the tenant (and DB) on each authenticated request where it is applied.
 - `tenant.required` middleware 403s if a tenant is not set after resolution.
 - `SetTenant` resets the connection in a `finally` block to avoid tenant bleed in Octane/queues.
 
@@ -302,7 +302,7 @@ Or:
 
 ```php
 // config/multi-tenancy.php
-'user_model' => env('MULTI_TENANT_USER_MODEL', 'App\\Models\\User'),
+'user_model' => App\Models\User::class,
 ```
 
 The listener dynamically loads and uses whatever User model you specify.
@@ -315,6 +315,6 @@ The listener dynamically loads and uses whatever User model you specify.
 |---------|---------|
 | **Tenant** | Logical business entity (League, Organization) - has user_id + databases |
 | **TenantDatabase** | Actual MySQL/PostgreSQL database with connection credentials |
-| **Database Switching** | At login, Laravel's `database.default` changes to tenant's connection |
+| **Database Switching** | During an authenticated request, Laravel's `database.default` changes to tenant's connection |
 | **Post-Auth** | Database is switched AFTER user authenticates (not before, not by subdomain) |
 | **Your Responsibility** | Assign users to tenants, create tenant databases, handle N:M users-per-tenant |
