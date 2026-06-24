@@ -22,7 +22,7 @@ You have a SaaS application where:
 User Registration/Admin Setup:
   1. Admin creates a League (Tenant record)
   2. Admin creates a database for that League (TenantDatabase record)
-  3. Admin assigns Users to that League
+  3. Admin associates the authenticated owner user with that Tenant
 
 User Login:
   1. User logs in → SetTenantOnLogin fires for the login request
@@ -49,6 +49,14 @@ $tenant = Tenant::create([
 ```
 
 **Key Point**: One `Tenant.user_id` can map to **ONE** tenant. But one **database can serve MANY users** from that tenant.
+
+Out of the box, the resolver uses owner-style tenancy:
+
+```text
+authenticated users.id → tenants.user_id
+```
+
+If your app needs many users per tenant, add a membership model/table in the host app and customize tenant resolution around that membership relationship.
 
 #### 2. **TenantDatabase**
 ```php
@@ -96,12 +104,15 @@ $tenant = Tenant::where('user_id', $user->id)->first();
 // Finds: Tenant with id=1, name='League A'
 ```
 
+For existing applications, this only works after the app creates tenant mappings. Installing the package does not inspect existing tenant databases or infer membership automatically.
+
 ### Step 3: Choose Tenant Database
 ```php
 // Primary pick order:
 // 1) Explicit database ID passed to setTenant($tenant, $databaseId)
 // 2) Tenant::primaryDatabase() (is_primary = true)
 // 3) Single database fallback (if only one exists)
+// 4) No active DB if the tenant has no tenant_databases rows
 $database = $tenant->primaryDatabase(); // or the explicit one you passed
 ```
 
@@ -137,13 +148,13 @@ $users = User::all();  // Queries League A database
 ```
 League A (Tenant id=1)
 ├── User 1 (id=1)    ← tenants.user_id = 1
-├── User 2 (id=2)    ← Some other way to associate
+├── User 2 (id=2)    ← requires an app-level membership relationship
 ├── User 3 (id=3)
 ├── User 4 (id=4)
 └── User 5 (id=5)
 
-All 5 users have: Tenant.where('user_id', user.id) → Tenant(id=1)
-All 5 users → League A database when logged in
+Only User 1 resolves through the built-in owner lookup.
+Users 2-5 need a membership table, tenant_id on users, or custom resolver behavior.
 ```
 
 **How does the package know User 2, 3, 4, 5 belong to the same league as User 1?**
@@ -161,14 +172,14 @@ $tenant->update(['user_id' => $user2->id]); // Overwrites - BAD
 
 // Option 2: Create a pivot table (RECOMMENDED):
 // users_tenants: user_id, tenant_id
-// Then modify SetTenantOnLogin to look for any tenant association
+// Then customize TenantResolverService to look for any tenant association
 
 // Option 3: Store tenant_id on users table:
 // Users table: id, name, email, tenant_id
 $user2->tenant_id = 1;
 $user2->save();
 
-// Then modify SetTenantOnLogin:
+// Then customize TenantResolverService:
 $tenant = Tenant::find($user->tenant_id);
 ```
 
@@ -217,10 +228,10 @@ Invoice::forTenant($tenantId = 10, $databaseId = 5)->get();
 Decide: Will they join an existing Tenant or create a new one?
 
 ```php
-// Option A: Admin assigns user to existing tenant
+// Option A: Admin assigns user to existing tenant through your membership model
 $tenant = Tenant::find($request->tenant_id);
 $user = User::create(['name' => 'Keith', ...]);
-$tenant->update(['user_id' => $user->id]); // If 1:1 relationship
+// Example only: create your own tenant_user membership row here.
 
 // Option B: User creates their own tenant
 $user = User::create([...]);
@@ -229,12 +240,7 @@ $tenant = Tenant::create([
     'name' => $request->organization_name,
 ]);
 
-// Then create database for tenant
-TenantDatabase::create([
-    'tenant_id' => $tenant->id,
-    'name' => 'my_tenant_db',
-    'connection_details' => [...]
-]);
+// Then provision the tenant database mapping with tenant:create
 ```
 
 ### 2. Handle Many Users Per Tenant
@@ -251,8 +257,8 @@ Schema::create('users_tenants', function (Blueprint $table) {
     $table->timestamps();
 });
 
-// Modify SetTenantOnLogin:
-private function findTenantByUserId($user): ?Tenant
+// Customize TenantResolverService:
+public function findTenantByUserId($user): ?Tenant
 {
     // Get first tenant this user belongs to
     return Tenant::whereHas('users', function ($q) use ($user) {
@@ -267,12 +273,11 @@ private function findTenantByUserId($user): ?Tenant
 
 When creating tenants, migrate their schema:
 
-```php
-// After TenantDatabase::create()
-MultiTenancy::setTenant($tenant);
-Artisan::call('migrate', ['--database' => 'tenant_connection_1']);
-MultiTenancy::switchToMainConnection();
+```bash
+php artisan tenant:migrate --tenant=1
 ```
+
+Tenant migrations should live in the configured tenant migration path, usually `database/migrations/tenant`, so central package/app migrations do not run inside tenant databases.
 
 ---
 

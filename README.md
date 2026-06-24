@@ -45,7 +45,7 @@ If your application is primarily domain-first or subdomain-first and you need br
 
 ## Features
 
-- **Post-authentication multi-tenancy**: Tenants are automatically detected and switched after user login
+- **Post-authentication multi-tenancy**: Tenants are resolved from authenticated user mappings and switched after login/request authentication
 - **Runtime connection resolution**: The package chooses or builds the correct tenant connection for the authenticated user
 - **Multiple database support**: Each tenant can use a separate database connection
 - **Minimal configuration**: Install quickly with sensible defaults
@@ -124,6 +124,45 @@ return [
 
 ## Basic Usage
 
+### How the package decides which tenant database to use
+
+The package does not scan existing databases to guess where a user belongs. It uses the central/default Laravel database as the source of truth.
+
+Default mapping:
+
+```text
+authenticated users.id
+→ tenants.user_id
+→ tenant_databases.tenant_id
+→ tenant_databases.connection_details
+→ runtime Laravel connection
+```
+
+That means `tenant:create` is the provisioning step that tells the package which tenant and database belong to a user:
+
+```bash
+php artisan tenant:create 123 "Acme Store" \
+  --db-driver=mysql \
+  --db-host=127.0.0.1 \
+  --db-name=acme_store \
+  --db-username=acme_user \
+  --db-password=secret \
+  --force
+```
+
+After that, when user ID `123` authenticates and reaches a route using the `tenant` middleware, the package finds `tenants.user_id = 123`, chooses that tenant's database, builds the Laravel database connection at runtime, and switches the request to that connection.
+
+Tenant database selection order:
+
+```text
+1. Explicit database ID passed in code
+2. Tenant database marked is_primary = true
+3. The only tenant database, if the tenant has exactly one
+4. No tenant database is selected if none exist
+```
+
+Existing Laravel apps must create these tenant mappings for existing users. The package intentionally does not auto-discover tenant databases by searching every database for matching users.
+
 ### 1. User Model Configuration
 
 The package automatically works with your existing User model. If you're using a custom User model or different namespace:
@@ -188,7 +227,7 @@ php artisan tenant:install --migrate
 
 ### 1. Register the middleware (optional)
 
-If you want to manually control when tenant switching happens, add the middleware to your routes:
+Add the `tenant` middleware after authentication on routes that need tenant database context:
 
 ```php
 // In routes/web.php or routes/api.php
@@ -196,6 +235,16 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Your tenant-aware routes here
 });
 ```
+
+Use `tenant.required` when a route must fail if no tenant was resolved:
+
+```php
+Route::middleware(['auth', 'tenant', 'tenant.required'])->group(function () {
+    // These routes require tenant context
+});
+```
+
+The login listener can set tenant context during the login request, but middleware is what resolves tenant context on later web/API requests.
 
 ### 2. Add traits to your models
 
@@ -251,17 +300,13 @@ php artisan tenant:status --tenant=1
 
 # Test all database connections
 php artisan tenant:status --connections
-
-# Test connections for one driver only
-php artisan tenant:status --connections --driver=mysql
-php artisan tenant:status --connections --driver=pgsql
-php artisan tenant:status --connections --driver=sqlite
-php artisan tenant:status --connections --driver=sqlsrv
 ```
 
 ### Creating Tenants
 
 Use the artisan command to create a new tenant. The package supports all major database drivers:
+
+If the database already exists, pass the tenant database credentials and omit `--create-db`. If you want the command to create the database, pass `--create-db` plus root/admin credentials. Root/admin credentials are used only by the command and are not stored for runtime tenant switching.
 
 #### **MySQL Tenant** (Default)
 ```bash
@@ -272,7 +317,23 @@ php artisan tenant:create 1 "MySQL Company" \
   --db-port=3306 \
   --db-username=mysql_user \
   --db-password=secret \
-  --create-db
+  --force
+```
+
+To create the database too:
+
+```bash
+php artisan tenant:create 1 "MySQL Company" \
+  --db-name=tenant_mysql_db \
+  --db-driver=mysql \
+  --db-host=127.0.0.1 \
+  --db-port=3306 \
+  --db-username=mysql_user \
+  --db-password=secret \
+  --create-db \
+  --root-username=root \
+  --root-password=root_secret \
+  --force
 ```
 
 #### **PostgreSQL Tenant**  
@@ -284,7 +345,7 @@ php artisan tenant:create 2 "PostgreSQL Company" \
   --db-port=5432 \
   --db-username=postgres_user \
   --db-password=secret \
-  --create-db
+  --force
 ```
 
 #### **SQLite Tenant**
@@ -304,7 +365,7 @@ php artisan tenant:create 4 "SQL Server Company" \
   --db-port=1433 \
   --db-username=sa \
   --db-password=secret \
-  --create-db
+  --force
 ```
 
 ### Multi-Driver Support
@@ -330,6 +391,9 @@ php artisan tenant:migrate --tenant=1
 # Run migrations on specific database
 php artisan tenant:migrate --database=1
 
+# Run migrations from a specific tenant migration path
+php artisan tenant:migrate --path=database/migrations/tenant
+
 # Fresh migrations with seeding
 php artisan tenant:migrate --fresh --seed
 
@@ -341,13 +405,15 @@ php artisan tenant:seed --class=UserSeeder
 
 # Test all tenant database connections
 php artisan tenant:status --connections
-
-# Test connections for one driver only
-php artisan tenant:status --connections --driver=mysql
-php artisan tenant:status --connections --driver=pgsql
-php artisan tenant:status --connections --driver=sqlite
-php artisan tenant:status --connections --driver=sqlsrv
 ```
+
+Tenant migrations must live separately from central Laravel/package migrations. By default the package expects:
+
+```php
+'tenant_migrations_path' => database_path('migrations/tenant'),
+```
+
+This prevents central tables like `tenants` and `tenant_databases` from being created inside tenant databases.
 
 ### Tenant Cleanup
 
@@ -419,6 +485,8 @@ php artisan tenant:create 123 "Manual Tenant"
 ```
 
 When user ID `123` logs in and the `tenant` middleware runs, the package loads that user's tenant, builds the tenant database connection from the stored `tenant_databases.connection_details`, and switches the request to that connection.
+
+For existing applications, installing the package does not automatically assign existing users to tenant databases. Create tenant mappings with `tenant:create` for each user, organization, store, workspace, or customer that should receive a tenant database.
 
 #### Optional Strategy: Email Domain Detection
 Email-domain detection is available, but it is disabled by default. Enable it only if your application treats matching email domains as authorized tenant membership:
