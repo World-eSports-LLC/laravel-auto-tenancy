@@ -10,7 +10,7 @@
                     "database-switching"
                 ],
                 "homepage": "https://github.com/World-eSports-LLC/laravel-auto-tenancy",
-                "license": "MIT",
+                "license": "GPL-3.0-or-later",
                 "authors": [
                     {
                         "name": "Keith Prinkey",
